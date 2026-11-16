@@ -180,7 +180,7 @@ function CategoryPageContent({ page, slug, loading, error, onScroll, router, the
         <ArrowLeftIAIcon color={theme.text} size={16} />
         <ThemedText type="link">Voltar</ThemedText>
       </Pressable>
-      <ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={styles.content}>
+      <ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={[styles.content, classicCategoryPage && styles.contentClassicCategoryPage]}>
         {!isCategoryPage && <ThemedText type="subtitle">{page?.name ?? slug}</ThemedText>}
         {loading && <ActivityIndicator color={theme.text} />}
         {error && <ThemedText style={styles.errorText}>Não foi possível carregar esta página.</ThemedText>}
@@ -209,6 +209,7 @@ const styles = StyleSheet.create({
   pagePanel: { flex: 1 },
   pagePanelClassic: { marginHorizontal: -10, width: 'auto' },
   content: { gap: Spacing.three, paddingVertical: Spacing.three },
+  contentClassicCategoryPage: { gap: 0, backgroundColor: 'transparent' },
   hiddenBack: { display: 'none' },
   errorText: { color: '#ed6560' },
 });
