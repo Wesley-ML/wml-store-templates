@@ -595,6 +595,33 @@ function categoryListItems(data: Record<string, unknown>) {
   });
 }
 
+const prefetchedCategoryIconUrls = new Set<string>();
+
+export function prefetchCategoryIcons(page: CmsPage | null) {
+  if (!page) return;
+
+  const iconUrls = new Set<string>();
+  for (const section of page.sections ?? []) {
+    if (section.name !== 'CategoryListSwipe' && section.name !== 'CategoryAccordeon' && section.name !== 'CategoryTree') continue;
+
+    for (const item of categoryListItems(section.data ?? {})) {
+      const category = record(item);
+      const iconUrl = category ? categoryIconUrl(category) : '';
+      if (/^https?:\/\//i.test(iconUrl)) iconUrls.add(iconUrl);
+    }
+  }
+
+  const urlsToPrefetch = Array.from(iconUrls).filter((url) => !prefetchedCategoryIconUrls.has(url));
+  if (urlsToPrefetch.length === 0) return;
+
+  urlsToPrefetch.forEach((url) => prefetchedCategoryIconUrls.add(url));
+  void Image.prefetch(urlsToPrefetch, { cachePolicy: 'memory-disk' }).then((success) => {
+    if (!success) urlsToPrefetch.forEach((url) => prefetchedCategoryIconUrls.delete(url));
+  }).catch(() => {
+    urlsToPrefetch.forEach((url) => prefetchedCategoryIconUrls.delete(url));
+  });
+}
+
 export function getCategoryIconForPage(page: CmsPage | null, slug?: string) {
   if (!page || !slug) return '';
 
@@ -636,7 +663,7 @@ function CategorySwipeRow({ category, onPress, classicStyle, isSubcategory }: { 
       onPress={onPress}
       style={({ pressed }) => [styles.categorySwipeRow, classicStyle && styles.categorySwipeRowClassic, pressed && styles.pressed]}>
 		<View style={styles.categorySwipeRowContent}>
-			{!!iconUrl && <Image source={{ uri: iconUrl }} contentFit="contain" style={styles.categorySwipeRowIcon} />}
+          {!!iconUrl && <Image source={{ uri: iconUrl }} contentFit="contain" priority="high" cachePolicy="memory-disk" style={styles.categorySwipeRowIcon} />}
           <ThemedText style={[styles.categorySwipeRowTitle, isSubcategory && styles.categorySwipeSubcategoryTitle]} numberOfLines={1}>{title}</ThemedText>
 		</View>
 			{(!isSubcategory || hasSubcategories) && <ArrowRightAIcon color="#0a0a0a" size={16} />}
@@ -762,7 +789,7 @@ function CategoryRow({ category, router, classicStyle, showDivider }: { category
       onPress={() => openCmsAction(router, category.action, title)}
       style={({ pressed }) => [styles.categoryRow, classicStyle && styles.categoryRowClassic, classicStyle && !showDivider && styles.categoryRowClassicLast, pressed && styles.pressed]}>
 		<View style={styles.categoryRowContent}>
-			{!!iconUrl && <Image source={{ uri: iconUrl }} contentFit="contain" style={styles.categoryRowIcon} />}
+          {!!iconUrl && <Image source={{ uri: iconUrl }} contentFit="contain" priority="high" cachePolicy="memory-disk" style={styles.categoryRowIcon} />}
 			<ThemedText style={[styles.categoryRowTitle, classicStyle && styles.categoryRowTitleClassic]}>{title}</ThemedText>
 		</View>
 			<ArrowRightAIcon color="#0a0a0a" size={20} />
@@ -821,7 +848,7 @@ function CategoryGroup({
               <ArrowLeftIAIcon color="#0a0a0a" size={20} />
             </Pressable>
           )}
-          {!!iconUrl && <Image source={{ uri: iconUrl }} contentFit="contain" style={styles.categoryGroupIcon} />}
+          {!!iconUrl && <Image source={{ uri: iconUrl }} contentFit="contain" priority="high" cachePolicy="memory-disk" style={styles.categoryGroupIcon} />}
           <ThemedText style={[styles.categoryGroupTitle, classicStyle && styles.categoryGroupTitleClassic]}>{title}</ThemedText>
           <Pressable
             accessibilityRole="button"
@@ -881,7 +908,7 @@ function CategoryGroup({
                         pressed && styles.pressed,
                       ]}>
 						<View style={styles.subcategoryRowContent}>
-							{!!iconUrl && <Image source={{ uri: iconUrl }} contentFit="contain" style={styles.subcategoryRowIcon} />}
+							{!!iconUrl && <Image source={{ uri: iconUrl }} contentFit="contain" priority="high" cachePolicy="memory-disk" style={styles.subcategoryRowIcon} />}
 							<ThemedText style={[styles.subcategoryText, classicStyle && styles.subcategoryTextClassic, !!subcategoryFlag && styles.subcategoryTextFlag]}>{subcategoryTitle}</ThemedText>
 							{!!subcategoryFlag && <View style={styles.subcategoryFlag}><ThemedText style={styles.subcategoryFlagText}>{subcategoryFlag}</ThemedText></View>}
 						</View>

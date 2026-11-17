@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CmsSectionView, getCategoryIconForPage } from '@/components/cms-section';
+import { CmsSectionView, getCategoryIconForPage, prefetchCategoryIcons } from '@/components/cms-section';
 import {
   CategoryBackground,
   CategoryBackgroundPanel,
@@ -34,20 +34,36 @@ export default function CmsPageScreen() {
     let active = true;
     getCmsPage('landingPage', slug, {
       onRefresh: (nextPage) => {
-        if (active) setPage(nextPage);
+        if (active) {
+          prefetchCategoryIcons(nextPage);
+          setPage(nextPage);
+        }
       },
     })
-      .then((nextPage) => { if (active) setPage(nextPage); })
+      .then((nextPage) => {
+        if (active) {
+          prefetchCategoryIcons(nextPage);
+          setPage(nextPage);
+        }
+      })
       .catch(() => { if (active) setError(true); })
       .finally(() => { if (active) setLoading(false); });
 
     if (/^categ-/i.test(slug)) {
       getCmsPage('categories', 'categorias', {
         onRefresh: (nextPage) => {
-          if (active) setCategoriesPage(nextPage);
+          if (active) {
+            prefetchCategoryIcons(nextPage);
+            setCategoriesPage(nextPage);
+          }
         },
       })
-        .then((nextPage) => { if (active) setCategoriesPage(nextPage); })
+        .then((nextPage) => {
+          if (active) {
+            prefetchCategoryIcons(nextPage);
+            setCategoriesPage(nextPage);
+          }
+        })
         .catch(() => undefined);
     }
 

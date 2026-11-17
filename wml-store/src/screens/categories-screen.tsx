@@ -1,4 +1,4 @@
-import { CmsSectionView } from '@/components/cms-section';
+import { CmsSectionView, prefetchCategoryIcons } from '@/components/cms-section';
 import {
   CategoryBackground,
   CategoryBackgroundPanel,
@@ -30,10 +30,18 @@ export default function CategoriesScreen() {
     let active = true;
     getCmsPage('categories', 'categorias', {
       onRefresh: (page) => {
-        if (active) setCmsPage(page);
+        if (active) {
+          prefetchCategoryIcons(page);
+          setCmsPage(page);
+        }
       },
     })
-      .then((page) => { if (active) setCmsPage(page); })
+      .then((page) => {
+        if (active) {
+          prefetchCategoryIcons(page);
+          setCmsPage(page);
+        }
+      })
       .catch(() => { if (active) setError(true); })
       .finally(() => { if (active) setLoading(false); });
 
