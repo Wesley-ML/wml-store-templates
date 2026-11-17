@@ -1211,12 +1211,18 @@ export function CmsSectionView({ section, categoryPageSlug, categoryPageIconUrl,
     };
 
     const bannerSectionStyle = isCategoryScreen ? styles.categoryBannerSection : styles.bannerSection;
+    const subcategoryBannerStyle = categoryPageSlug
+      ? categoryBackground?.categoryMenuStyle === 'classic'
+        ? styles.subcategoryBannerSectionClassic
+        : styles.subcategoryBannerSection
+      : undefined;
 
     return (
       <View style={[
         isFullScreenHero ? styles.heroSection : [bannerSectionStyle, isHome && styles.homeBannerSection, isHome && homeBannerSectionStyle],
         dark && { backgroundColor: theme.background },
         isCategoryScreen && categoryBackground?.categoryMenuStyle === 'classic' && styles.categoryBannerSectionClassic,
+        subcategoryBannerStyle,
       ]}>
         {!!text(data.mainTitle) && <ThemedText type="subtitle" style={[styles.bannerSectionTitle, isHome && homeBannerTitleStyle, searchPresentation && styles.searchBannerSectionTitle, dark && { color: theme.text }]}>{text(data.mainTitle)}</ThemedText>}
         {renderModeContent()}
