@@ -32,6 +32,15 @@ function paramText(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? '' : value ?? '';
 }
 
+function cmsSearchTermItems(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') return value.split(/[,;\n]/);
+  if (!value || typeof value !== 'object') return [];
+
+  const data = value as Record<string, unknown>;
+  return cmsSearchTermItems(data.terms ?? data.items ?? data.popularSearchTerms);
+}
+
 function readCmsPopularSearchTerms(page: CmsPage | null): string[] | null {
   if (!page) return null;
 
@@ -43,12 +52,7 @@ function readCmsPopularSearchTerms(page: CmsPage | null): string[] | null {
   for (const source of sources) {
     if (!Object.prototype.hasOwnProperty.call(source, 'popularSearchTerms')) continue;
 
-    const value = source.popularSearchTerms;
-    const terms = Array.isArray(value)
-      ? value
-      : typeof value === 'string'
-        ? value.split(/[,;\n]/)
-        : [];
+    const terms = cmsSearchTermItems(source.popularSearchTerms);
     const seen = new Set<string>();
 
     return terms.flatMap((item) => {

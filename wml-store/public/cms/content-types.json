@@ -142,12 +142,21 @@
             "name": "popularSearchTerms",
             "schema": {
               "title": "Termos em alta",
-              "description": "Adicione um termo por item. A ordem cadastrada será mantida na tela de busca.",
-              "type": "array",
-              "default": ["biquíni", "calcinha", "legging"],
-              "items": {
-                "title": "Termo de busca",
-                "type": "string"
+              "description": "Os termos iniciais já vêm preenchidos. Adicione um termo por item; a ordem será mantida na tela de busca.",
+              "type": "object",
+              "default": {
+                "terms": ["biquíni", "calcinha", "legging"]
+              },
+              "properties": {
+                "terms": {
+                  "title": "Termos de busca",
+                  "type": "array",
+                  "default": ["biquíni", "calcinha", "legging"],
+                  "items": {
+                    "title": "Termo de busca",
+                    "type": "string"
+                  }
+                }
               }
             }
           }

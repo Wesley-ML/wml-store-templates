@@ -64,18 +64,21 @@ da lista; a ordem cadastrada é preservada. Por exemplo:
 
 ```json
 {
-  "popularSearchTerms": [
-    "biquíni",
-    "calcinha",
-    "legging"
-  ]
+  "popularSearchTerms": {
+    "terms": [
+      "biquíni",
+      "calcinha",
+      "legging"
+    ]
+  }
 }
 ```
 
 O campo começa com os termos `biquíni`, `calcinha` e `legging`; você pode editar,
-remover ou acrescentar itens no Headless CMS. O app usa a lista publicada e
-mantém esses três termos como fallback caso o documento `buscar` ainda não tenha
-uma lista preenchida.
+remover ou acrescentar itens no Headless CMS. Como o documento `buscar` já
+existe, atualize e publique esse documento uma vez para gravar os termos nele.
+O app lê a lista publicada do CMS e mantém esses três termos como fallback caso
+a página ainda não tenha uma lista preenchida.
 
 ## Fundo das telas de categorias
 
