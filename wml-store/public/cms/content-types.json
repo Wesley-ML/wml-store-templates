@@ -136,6 +136,23 @@
     "scopes": ["search"],
     "configurationSchemaSets": [
       {
+        "name": "Termos em alta",
+        "configurations": [
+          {
+            "name": "popularSearchTerms",
+            "schema": {
+              "title": "Termos em alta",
+              "description": "Adicione um termo por item. A ordem cadastrada será mantida na tela de busca.",
+              "type": "array",
+              "items": {
+                "title": "Termo de busca",
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      {
         "name": "Tema",
         "configurations": [
           {

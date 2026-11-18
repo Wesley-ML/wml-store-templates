@@ -33,6 +33,41 @@ function paramText(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? '' : value ?? '';
 }
 
+function readCmsPopularSearchTerms(page: CmsPage | null): string[] | null {
+  if (!page) return null;
+
+  const rawPage = page as Record<string, unknown>;
+  const sources = [rawPage, ...Object.values(rawPage).filter((value): value is Record<string, unknown> => (
+    Boolean(value && typeof value === 'object' && !Array.isArray(value))
+  ))];
+
+  for (const source of sources) {
+    if (!Object.prototype.hasOwnProperty.call(source, 'popularSearchTerms')) continue;
+
+    const value = source.popularSearchTerms;
+    const terms = Array.isArray(value)
+      ? value
+      : typeof value === 'string'
+        ? value.split(/[,;\n]/)
+        : [];
+    const seen = new Set<string>();
+
+    return terms.flatMap((item) => {
+      const term = typeof item === 'string'
+        ? item.trim()
+        : item && typeof item === 'object'
+          ? String((item as Record<string, unknown>).term ?? (item as Record<string, unknown>).value ?? '').trim()
+          : '';
+      const identity = term.toLowerCase();
+      if (!term || seen.has(identity)) return [];
+      seen.add(identity);
+      return [term];
+    });
+  }
+
+  return null;
+}
+
 function facetIdentity(facet: SelectedFacet) {
   return `${facet.key.trim().toLowerCase()}:${facet.value.trim().toLowerCase()}`;
 }
@@ -126,7 +161,8 @@ export default function SearchScreen() {
   const [listingTitle, setListingTitle] = useState(initialTitle);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
-  const [popularTerms, setPopularTerms] = useState<string[]>([]);
+  const [apiPopularTerms, setApiPopularTerms] = useState<string[]>([]);
+  const [cmsPopularTerms, setCmsPopularTerms] = useState<string[] | null>(null);
   const [searchCmsPage, setSearchCmsPage] = useState<CmsPage | null>(null);
   const [listingResolution, setListingResolution] = useState<ListingResolution | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
@@ -135,6 +171,7 @@ export default function SearchScreen() {
   const activeFacets = mergeFacets(contextFacets, selectedFacets);
   const facetSignature = JSON.stringify(selectedFacets);
   const productRows = useMemo(() => buildProductGridRows(products), [products]);
+  const popularTerms = cmsPopularTerms ?? apiPopularTerms;
   const showSearchCms = searchOpen && !activeQuery && activeFacets.length === 0;
   const isCollectionListing = activeFacets.some((facet) => facet.key.trim().toLowerCase() === 'productclusterids');
   const displayListingTitle = listingTitle || activeQuery || (isCollectionListing && loading ? '' : 'Produtos');
@@ -208,17 +245,29 @@ export default function SearchScreen() {
   }, [activeQuery, searchOpen, term]);
 
   useEffect(() => {
-    getTopSearchTerms().then(setPopularTerms).catch(() => setPopularTerms([]));
+    getTopSearchTerms().then(setApiPopularTerms).catch(() => setApiPopularTerms([]));
   }, []);
 
   useEffect(() => {
     let active = true;
     getCmsPage('search', SEARCH_CMS_DOCUMENT, {
       forceRefresh: true,
-      onRefresh: (page) => { if (active) setSearchCmsPage(page); },
+      onRefresh: (page) => {
+        if (!active) return;
+        setSearchCmsPage(page);
+        setCmsPopularTerms(readCmsPopularSearchTerms(page));
+      },
     })
-      .then((page) => { if (active) setSearchCmsPage(page); })
-      .catch(() => { if (active) setSearchCmsPage(null); });
+      .then((page) => {
+        if (!active) return;
+        setSearchCmsPage(page);
+        setCmsPopularTerms(readCmsPopularSearchTerms(page));
+      })
+      .catch(() => {
+        if (!active) return;
+        setSearchCmsPage(null);
+        setCmsPopularTerms(null);
+      });
     return () => { active = false; };
   }, []);
 

@@ -56,6 +56,28 @@ fundo. Valores inválidos são descartados e não alteram o tema padrão.
 O tema é aplicado somente à página que o CMS configurou. Um documento sem tema
 ou com valor inválido continua usando `default`, sem alterar as demais telas.
 
+## Termos em alta na busca
+
+No tipo de página `Busca`, configure o campo `Termos em alta` para controlar os
+chips exibidos no início da tela de busca. Adicione cada expressão como um item
+da lista; a ordem cadastrada é preservada. Por exemplo:
+
+```json
+{
+  "popularSearchTerms": [
+    "biquíni",
+    "calcinha",
+    "legging",
+    "meia",
+    "short"
+  ]
+}
+```
+
+Quando o campo estiver preenchido, o app usa essa lista. Se ele não estiver
+configurado no documento `buscar`, a tela continua usando os termos automáticos
+de buscas populares. Uma lista configurada sem itens oculta a seção “Em alta”.
+
 ## Fundo das telas de categorias
 
 Adicione a seção `CategoryBackground` ao documento `categories`. As páginas de

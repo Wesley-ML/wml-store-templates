@@ -14,6 +14,7 @@ export type CmsPage = {
   sections: CmsSection[];
   settings?: Record<string, unknown>;
   tema?: Record<string, unknown>;
+  [key: string]: unknown;
 };
 
 const cacheTtl = 24 * 60 * 60 * 1000;
@@ -35,8 +36,9 @@ function normalizePage(payload: unknown): CmsPage | null {
 
   if (!candidate || typeof candidate !== 'object') return null;
 
-  const page = candidate as { sections?: unknown; settings?: unknown; tema?: unknown; id?: string; name?: string };
+  const page = candidate as { sections?: unknown; settings?: unknown; tema?: unknown; id?: string; name?: string } & Record<string, unknown>;
   return {
+    ...page,
     id: page.id,
     name: page.name,
     sections: Array.isArray(page.sections)
