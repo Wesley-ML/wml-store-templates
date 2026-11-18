@@ -59,26 +59,24 @@ ou com valor inválido continua usando `default`, sem alterar as demais telas.
 ## Termos em alta na busca
 
 No tipo de página `Busca`, configure o campo `Termos em alta` para controlar os
-chips exibidos no início da tela de busca. Adicione cada expressão como um item
-da lista; a ordem cadastrada é preservada. Por exemplo:
+chips exibidos no início da tela de busca. Informe todos os termos em um único
+campo, separados por vírgulas; a ordem cadastrada é preservada. Por exemplo:
 
 ```json
 {
   "popularSearchTerms": {
-    "terms": [
-      "biquíni",
-      "calcinha",
-      "legging"
-    ]
+    "terms": "biquíni, calcinha, legging"
   }
 }
 ```
 
-O campo começa com os termos `biquíni`, `calcinha` e `legging`; você pode editar,
-remover ou acrescentar itens no Headless CMS. Como o documento `buscar` já
-existe, atualize e publique esse documento uma vez para gravar os termos nele.
-O app lê a lista publicada do CMS e mantém esses três termos como fallback caso
-a página ainda não tenha uma lista preenchida.
+O campo começa com os termos `biquíni`, `calcinha` e `legging`; você pode editar
+a lista diretamente no Headless CMS. O app separa os termos por vírgula, remove
+espaços excedentes e ignora entradas vazias ou repetidas. Como o documento
+`buscar` já existe e os termos atuais estão em itens separados, após publicar o
+novo schema converta a lista uma vez para uma linha com vírgulas e publique o
+documento. O app também continua lendo a lista antiga durante a transição e
+mantém os três termos iniciais como fallback se o CMS não tiver termos.
 
 ## Fundo das telas de categorias
 

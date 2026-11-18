@@ -167,6 +167,7 @@ export default function SearchScreen() {
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [cmsPopularTerms, setCmsPopularTerms] = useState<string[] | null>(null);
   const [searchCmsPage, setSearchCmsPage] = useState<CmsPage | null>(null);
+  const [searchCmsLoaded, setSearchCmsLoaded] = useState(false);
   const [listingResolution, setListingResolution] = useState<ListingResolution | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -251,21 +252,18 @@ export default function SearchScreen() {
     let active = true;
     getCmsPage('search', SEARCH_CMS_DOCUMENT, {
       forceRefresh: true,
-      onRefresh: (page) => {
-        if (!active) return;
-        setSearchCmsPage(page);
-        setCmsPopularTerms(readCmsPopularSearchTerms(page));
-      },
     })
       .then((page) => {
         if (!active) return;
         setSearchCmsPage(page);
         setCmsPopularTerms(readCmsPopularSearchTerms(page));
+        setSearchCmsLoaded(true);
       })
       .catch(() => {
         if (!active) return;
         setSearchCmsPage(null);
         setCmsPopularTerms(null);
+        setSearchCmsLoaded(true);
       });
     return () => { active = false; };
   }, []);
@@ -600,7 +598,7 @@ export default function SearchScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <View style={styles.listHeaderContent}>
-              {!activeQuery && activeFacets.length === 0 && popularTerms.length > 0 && (
+              {searchCmsLoaded && !activeQuery && activeFacets.length === 0 && popularTerms.length > 0 && (
                 <ThemedView style={[styles.trending, hasCustomPageTheme && { backgroundColor: pagePalette.backgroundElement, borderColor: pagePalette.border }]}>
                   <ThemedText type="smallBold" style={styles.trendingTitle}>Em alta</ThemedText>
                   <View style={styles.chips}>
