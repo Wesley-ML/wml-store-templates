@@ -4,7 +4,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } f
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ArrowLeftIAIcon from '@/components/icons/ArrowLeftIAicon';
-import { CmsSectionView, ProductShelf } from '@/components/cms-section';
+import { CmsSectionView } from '@/components/cms-section';
 import MicrophoneIcon from '@/components/icons/MicrophoneIcon';
 import SearchIcon from '@/components/icons/SearchIcon';
 import { FilterGlyph, ProductFilterModal } from '@/components/product-filter-modal';
@@ -19,11 +19,10 @@ import { PageThemeProvider } from '@/context/page-theme-context';
 import { useAppTheme } from '@/context/theme-context';
 import { useTabBarScroll } from '@/hooks/use-tab-bar-scroll';
 import { subscribeAccountSession } from '@/services/auth';
-import { DEFAULT_SEARCH_SORT, getSearchSuggestions, getTopSearchTerms, resolveCategoryFacets, searchCatalogProductListing, searchProductListing, searchSmartProductListing, type CatalogFacet, type Product, type SearchSuggestion, type SelectedFacet, type SmartSearchSource } from '@/services/catalog';
+import { DEFAULT_SEARCH_SORT, getSearchSuggestions, resolveCategoryFacets, searchCatalogProductListing, searchProductListing, searchSmartProductListing, type CatalogFacet, type Product, type SearchSuggestion, type SelectedFacet, type SmartSearchSource } from '@/services/catalog';
 import { parseCmsRouteFacets } from '@/services/cms-actions';
 import { getCmsPage, type CmsPage } from '@/services/cms';
 import { resolvePageTheme, resolvePageThemeColors } from '@/services/cms-page-theme';
-import { EMPTY_CART_RECENT_PRODUCTS_SHELF } from '@/utils/checkout';
 import { isFavorite } from '@/services/favorites';
 import { clearRecentSearches as clearStoredRecentSearches, getRecentSearches, removeRecentSearch, saveRecentSearch } from '@/services/recent-searches';
 import { trackEvent } from '@/services/telemetry';
@@ -113,6 +112,7 @@ function collectionTitleFromProducts(products: Product[], facets: SelectedFacet[
 }
 
 const SEARCH_CMS_DOCUMENT = 'buscar';
+const DEFAULT_POPULAR_SEARCH_TERMS = ['biquíni', 'calcinha', 'legging'];
 
 function replaceResolvedCategoryValues(contextFacets: SelectedFacet[], resolvedFacets: SelectedFacet[]) {
   const resolvedCategories = resolvedFacets.filter(isCategoryFacet);
@@ -161,7 +161,6 @@ export default function SearchScreen() {
   const [listingTitle, setListingTitle] = useState(initialTitle);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
-  const [apiPopularTerms, setApiPopularTerms] = useState<string[]>([]);
   const [cmsPopularTerms, setCmsPopularTerms] = useState<string[] | null>(null);
   const [searchCmsPage, setSearchCmsPage] = useState<CmsPage | null>(null);
   const [listingResolution, setListingResolution] = useState<ListingResolution | null>(null);
@@ -171,7 +170,7 @@ export default function SearchScreen() {
   const activeFacets = mergeFacets(contextFacets, selectedFacets);
   const facetSignature = JSON.stringify(selectedFacets);
   const productRows = useMemo(() => buildProductGridRows(products), [products]);
-  const popularTerms = cmsPopularTerms ?? apiPopularTerms;
+  const popularTerms = cmsPopularTerms?.length ? cmsPopularTerms : DEFAULT_POPULAR_SEARCH_TERMS;
   const showSearchCms = searchOpen && !activeQuery && activeFacets.length === 0;
   const isCollectionListing = activeFacets.some((facet) => facet.key.trim().toLowerCase() === 'productclusterids');
   const displayListingTitle = listingTitle || activeQuery || (isCollectionListing && loading ? '' : 'Produtos');
@@ -243,10 +242,6 @@ export default function SearchScreen() {
       clearTimeout(timer);
     };
   }, [activeQuery, searchOpen, term]);
-
-  useEffect(() => {
-    getTopSearchTerms().then(setApiPopularTerms).catch(() => setApiPopularTerms([]));
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -614,8 +609,6 @@ export default function SearchScreen() {
                 <CmsSectionView key={`${section.name}-${index}`} section={section} searchPresentation />
               ))}
 
-              {showSearchCms && <ProductShelf data={EMPTY_CART_RECENT_PRODUCTS_SHELF} titleStyle={styles.searchProductShelfTitle} />}
-
               {(!!activeQuery || activeFacets.length > 0) && (
                 <View style={styles.listingHeader}>
                   <View style={styles.listingHeading}>
@@ -711,5 +704,4 @@ const styles = StyleSheet.create({
   loadMoreFooter: { alignItems: 'center', gap: Spacing.two },
   successText: { color: '#26734d', fontWeight: '600' },
   messageText: { color: '#ed6560' },
-  searchProductShelfTitle: { fontSize: 16, lineHeight: 20, fontFamily: Fonts.medium, fontWeight: '500', marginLeft: -15 },
 });

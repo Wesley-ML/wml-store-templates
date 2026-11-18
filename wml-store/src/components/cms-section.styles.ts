@@ -72,6 +72,7 @@ export const styles = StyleSheet.create({
   selectedTab: { backgroundColor: '#0a0a0a' },
   selectedTabText: { color: '#FFFFFF' },
   homeShelfTitle: { fontSize: 20, lineHeight: 20 },
+  searchProductShelfTitle: { fontSize: 16, lineHeight: 20, fontFamily: Fonts.medium, fontWeight: '500', marginLeft: -15 },
   homeTabViewport: { marginHorizontal: 0, paddingHorizontal: 0 },
   homeTab: { borderRadius: 50 },
   homeTabText: { fontSize: 14, lineHeight: 16 },

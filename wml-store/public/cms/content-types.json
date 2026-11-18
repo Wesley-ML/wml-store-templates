@@ -144,6 +144,7 @@
               "title": "Termos em alta",
               "description": "Adicione um termo por item. A ordem cadastrada será mantida na tela de busca.",
               "type": "array",
+              "default": ["biquíni", "calcinha", "legging"],
               "items": {
                 "title": "Termo de busca",
                 "type": "string"

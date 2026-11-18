@@ -328,14 +328,14 @@ function openCmsAction(router: ReturnType<typeof useRouter>, value: unknown, fal
 type ProductShelfProps = {
   data: Record<string, unknown>;
   isHome?: boolean;
+  searchPresentation?: boolean;
   titleStyle?: StyleProp<TextStyle>;
   onAdded?: (product: Product) => void;
   onFavoriteChange?: (product: Product, favorite: boolean) => void;
   showAddedModal?: boolean;
 };
 
-export function ProductShelf({ data, isHome = false, titleStyle, onAdded, onFavoriteChange, showAddedModal = true }: ProductShelfProps) {
-  const router = useRouter();
+export function ProductShelf({ data, isHome = false, searchPresentation = false, titleStyle, onAdded, onFavoriteChange, showAddedModal = true }: ProductShelfProps) {
   const pageTheme = usePageTheme();
   const theme = useTheme();
   const dark = pageTheme.isDark;
@@ -397,12 +397,7 @@ export function ProductShelf({ data, isHome = false, titleStyle, onAdded, onFavo
   return (
     <ThemedView style={[styles.section, isHome ? styles.homeProductShelfSection : styles.productShelfSection, dark && { backgroundColor: theme.background }]}>
       <View style={styles.sectionHeader}>
-        <ThemedText type="subtitle" style={[isHome && styles.homeShelfTitle, titleStyle]}>{text(data.title) || 'Produtos'}</ThemedText>
-        {data.showSeeAll !== false && (
-          <Pressable onPress={() => router.push(`/search?q=${encodeURIComponent(text(activeConfig.term) || text(activeConfig.query))}` as never)}>
-            <ThemedText style={styles.seeAll}>Ver tudo</ThemedText>
-          </Pressable>
-        )}
+        <ThemedText type="subtitle" style={[isHome && styles.homeShelfTitle, searchPresentation && styles.searchProductShelfTitle, titleStyle]}>{text(data.title) || 'Produtos'}</ThemedText>
       </View>
       {tabs.length > 1 && (
         <FlatList
@@ -568,9 +563,9 @@ function StreamShopBanner({ data }: { data: Record<string, unknown> }) {
   return <ThemedView style={[styles.section, styles.streamShopSection]}><ThemedText type="subtitle">{text(data.title) || 'Ao vivo'}</ThemedText><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.contentRow}>{content.map((item, index) => { const value = item && typeof item === 'object' ? item as Record<string, unknown> : {}; return <ContentCard key={index} title={text(value.title)} description={text(value.description)} imageUrl={text(value.imageUrl) || text(value.thumbnail) || text(value.image)} action={value.action as { type?: string; value?: string } | undefined} />; })}</ScrollView></ThemedView>;
 }
 
-function ProductTiles({ data, isHome = false }: { data: Record<string, unknown>; isHome?: boolean }) {
+function ProductTiles({ data, isHome = false, searchPresentation = false }: { data: Record<string, unknown>; isHome?: boolean; searchPresentation?: boolean }) {
   const shelves = Array.isArray(data.shelves) ? data.shelves.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object')) : [];
-  return <View style={styles.tileStack}>{shelves.length ? shelves.map((shelf, index) => <ProductShelf key={index} data={shelf} isHome={isHome} />) : <ProductShelf data={data} isHome={isHome} />}</View>;
+  return <View style={styles.tileStack}>{shelves.length ? shelves.map((shelf, index) => <ProductShelf key={index} data={shelf} isHome={isHome} searchPresentation={searchPresentation} />) : <ProductShelf data={data} isHome={isHome} searchPresentation={searchPresentation} />}</View>;
 }
 
 function ScheduleCardShelf({ data }: { data: Record<string, unknown> }) {
@@ -1258,13 +1253,13 @@ export function CmsSectionView({ section, categoryPageSlug, categoryPageIconUrl,
   }
 
   if (section.name === 'ProductShelf' || section.name === 'HighlightedProductShelf') {
-    return <ProductShelf data={data} isHome={isHome} />;
+    return <ProductShelf data={data} isHome={isHome} searchPresentation={searchPresentation} />;
   }
 
   if (section.name === 'ProductInfiniteScroll') return <ProductListingSection data={data} />;
-  if (section.name === 'LastSeenProducts') return <ProductShelf data={data} isHome={isHome} />;
+  if (section.name === 'LastSeenProducts') return <ProductShelf data={data} isHome={isHome} searchPresentation={searchPresentation} />;
 
-  if (section.name === 'ProductTiles') return <ProductTiles data={data} isHome={isHome} />;
+  if (section.name === 'ProductTiles') return <ProductTiles data={data} isHome={isHome} searchPresentation={searchPresentation} />;
   if (section.name === 'ProductCollectionCarousel') return isHome ? <ProductCollectionCarousel data={data} /> : null;
   if (section.name === 'WiddeHomeVideoCarousel') return isHome ? <WiddeHomeVideoCarousel data={data} /> : null;
   if (section.name === 'StreamShopBanner') return <StreamShopBanner data={data} />;

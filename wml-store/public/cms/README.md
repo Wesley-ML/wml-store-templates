@@ -67,16 +67,15 @@ da lista; a ordem cadastrada é preservada. Por exemplo:
   "popularSearchTerms": [
     "biquíni",
     "calcinha",
-    "legging",
-    "meia",
-    "short"
+    "legging"
   ]
 }
 ```
 
-Quando o campo estiver preenchido, o app usa essa lista. Se ele não estiver
-configurado no documento `buscar`, a tela continua usando os termos automáticos
-de buscas populares. Uma lista configurada sem itens oculta a seção “Em alta”.
+O campo começa com os termos `biquíni`, `calcinha` e `legging`; você pode editar,
+remover ou acrescentar itens no Headless CMS. O app usa a lista publicada e
+mantém esses três termos como fallback caso o documento `buscar` ainda não tenha
+uma lista preenchida.
 
 ## Fundo das telas de categorias
 
