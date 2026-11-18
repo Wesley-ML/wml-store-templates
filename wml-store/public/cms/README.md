@@ -188,6 +188,14 @@ As cores do botão aceitam `#RGB`, `#RGBA`, `#RRGGBB`, `#RRGGBBAA`, `rgb(...)` e
 
 `width` e `height` iguais a `0` deixam o tamanho automático. `position.top` aceita valores de `0%` a `100%` e define a distância até a parte superior do botão. `position.left` usa o centro horizontal do botão como referência; portanto, use `left: "50%"` para centralizá-lo. Por exemplo, `top: "56%"` e `left: "50%"`. Os valores são compartilhados entre os dispositivos, sem uma configuração mobile separada. Se `enabled` for `false`, o botão não aparece nesse banner.
 
+## Altura do Slider Hero na Home
+
+Na seção `MultipleImageBanner`, o campo `Preencher tela toda` controla o modo
+`Slider Hero` da Home. Ele vem ativado para manter o comportamento atual. Desative
+o campo para o carrossel usar a proporção original de cada imagem, reduzindo a
+altura do banner e deixando as seções abaixo, como as categorias, mais visíveis.
+Nos outros modos de banner, essa configuração não altera o layout.
+
 ## Configuração da BottomTab
 
 O tipo singleton `appSettings` representa as configurações globais do aplicativo. Crie o documento `bottom-bar-settings` e adicione a seção `BottomTabSettings` com os valores de cor e as configurações de cada item:

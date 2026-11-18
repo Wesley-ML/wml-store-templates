@@ -932,7 +932,7 @@ export function CmsSectionView({ section, categoryPageSlug, categoryPageIconUrl,
   const bannerImages = section.name === 'MultipleImageBanner' && Array.isArray(data.images) ? data.images : [];
   const bannerMode = bannerDisplayMode(data.mode);
   const isHeroBanner = section.name === 'MultipleImageBanner' && bannerMode === 'SliderHero';
-  const isFullScreenHero = isHome && isHeroBanner;
+  const isFullScreenHero = isHome && isHeroBanner && data.fullScreen !== false;
   const [bannerAspectRatios, setBannerAspectRatios] = useState<Record<string, number>>({});
   const loopedBannerImages = bannerImages.length > 1 ? [bannerImages[bannerImages.length - 1], ...bannerImages, bannerImages[0]] : bannerImages;
   const bannerBlurTargets = useRef<Record<string, BannerBlurTargetRef>>({});

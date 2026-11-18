@@ -322,6 +322,12 @@
 					],
 					"default": "SliderHero"
 				},
+				"fullScreen": {
+					"title": "Preencher tela toda (Somente no Slider Hero da Home)",
+					"type": "boolean",
+					"default": true,
+					"description": "Ativado, o banner ocupa a tela toda. Desativado, o carrossel respeita a proporção original das imagens e deixa o conteúdo abaixo mais visível."
+				},
 				"size": {
 					"title": "Dimensões (opcional)",
 					"type": "object",
