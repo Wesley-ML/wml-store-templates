@@ -196,6 +196,12 @@ o campo para o carrossel usar a proporção original de cada imagem, reduzindo a
 altura do banner e deixando as seções abaixo, como as categorias, mais visíveis.
 Nos outros modos de banner, essa configuração não altera o layout.
 
+Para definir uma altura fixa relativa à tela, marque `Usar altura personalizada`
+e informe um percentual como `80%` em `Altura personalizada (% da tela)`. Esse
+valor prevalece sobre `Preencher tela toda` enquanto a altura personalizada
+estiver ativa. A imagem cobre a área configurada e pode ser cortada para
+preenchê-la. Desmarque ambos os campos para usar a proporção original da imagem.
+
 ## Configuração da BottomTab
 
 O tipo singleton `appSettings` representa as configurações globais do aplicativo. Crie o documento `bottom-bar-settings` e adicione a seção `BottomTabSettings` com os valores de cor e as configurações de cada item:

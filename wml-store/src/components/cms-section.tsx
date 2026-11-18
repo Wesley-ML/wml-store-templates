@@ -102,6 +102,11 @@ function bannerDimension(value: unknown, fallback: number) {
   return Number.isFinite(dimension) && dimension > 0 ? dimension : fallback;
 }
 
+function bannerPercent(value: unknown, fallback: number) {
+  const raw = typeof value === 'number' ? value : Number(text(value).trim().replace(/%$/, ''));
+  return Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : fallback;
+}
+
 type BannerButtonPosition = 'topLeft' | 'topCenter' | 'topRight' | 'centerLeft' | 'center' | 'centerRight' | 'bottomLeft' | 'bottomCenter' | 'bottomRight';
 type BannerPercentage = `${number}%`;
 
@@ -932,7 +937,11 @@ export function CmsSectionView({ section, categoryPageSlug, categoryPageIconUrl,
   const bannerImages = section.name === 'MultipleImageBanner' && Array.isArray(data.images) ? data.images : [];
   const bannerMode = bannerDisplayMode(data.mode);
   const isHeroBanner = section.name === 'MultipleImageBanner' && bannerMode === 'SliderHero';
-  const isFullScreenHero = isHome && isHeroBanner && data.fullScreen !== false;
+  const hasCustomHeroHeight = isHome && isHeroBanner && data.customHeightEnabled === true;
+  const isFullScreenHero = isHome && isHeroBanner && !hasCustomHeroHeight && data.fullScreen !== false;
+  const customHeroHeight = hasCustomHeroHeight
+    ? Math.round(Dimensions.get('window').height * bannerPercent(data.customHeightPercent, 80) / 100)
+    : undefined;
   const [bannerAspectRatios, setBannerAspectRatios] = useState<Record<string, number>>({});
   const loopedBannerImages = bannerImages.length > 1 ? [bannerImages[bannerImages.length - 1], ...bannerImages, bannerImages[0]] : bannerImages;
   const bannerBlurTargets = useRef<Record<string, BannerBlurTargetRef>>({});
@@ -1046,13 +1055,29 @@ export function CmsSectionView({ section, categoryPageSlug, categoryPageIconUrl,
       const blurTarget = getBannerBlurTarget(bannerKey);
       const loadedAspectRatio = options.aspectRatioKey && !stableCategoryBannerRatio ? bannerAspectRatios[options.aspectRatioKey] : undefined;
       return (
-        <Pressable key={bannerKey} onPress={openBanner} style={[styles.banner, options.containerStyle, isFullScreenHero && styles.heroBanner]}>
+        <Pressable key={bannerKey} onPress={openBanner} style={[
+          styles.banner,
+          options.containerStyle,
+          isFullScreenHero && styles.heroBanner,
+          customHeroHeight !== undefined && {
+            width: Dimensions.get('window').width,
+            height: customHeroHeight,
+            minHeight: customHeroHeight,
+            borderRadius: 0,
+          },
+        ]}>
           <BlurTargetView ref={blurTarget} style={styles.bannerTarget}>
             <Image
               source={{ uri: imageUrl }}
               onLoad={options.aspectRatioKey && !stableCategoryBannerRatio ? (event) => rememberBannerAspectRatio(options.aspectRatioKey!, event) : undefined}
-              style={[styles.bannerImage, options.imageStyle, loadedAspectRatio ? { aspectRatio: loadedAspectRatio } : undefined, isFullScreenHero && styles.heroImage]}
-              contentFit={stableCategoryBannerRatio && options.aspectRatioKey ? 'cover' : options.contentFit ?? (isFullScreenHero ? 'cover' : 'contain')}
+              style={[
+                styles.bannerImage,
+                options.imageStyle,
+                loadedAspectRatio ? { aspectRatio: loadedAspectRatio } : undefined,
+                isFullScreenHero && styles.heroImage,
+                customHeroHeight !== undefined && { width: '100%', height: customHeroHeight },
+              ]}
+              contentFit={stableCategoryBannerRatio && options.aspectRatioKey ? 'cover' : options.contentFit ?? (isFullScreenHero || customHeroHeight !== undefined ? 'cover' : 'contain')}
             />
             <View style={styles.overlay}>
               {!!text(image.overlayTitle) && <ThemedText style={[styles.overlayTitle, isHome && homeBannerOverlayTitleStyle]}>{text(image.overlayTitle)}</ThemedText>}
@@ -1100,13 +1125,16 @@ export function CmsSectionView({ section, categoryPageSlug, categoryPageIconUrl,
     };
 
     const renderHeroContent = () => (
-      <View style={isFullScreenHero ? styles.heroViewport : styles.bannerSliderViewport}>
+      <View style={[
+        isFullScreenHero ? styles.heroViewport : styles.bannerSliderViewport,
+        customHeroHeight !== undefined && { height: customHeroHeight },
+      ]}>
         <ScrollView
           ref={heroRef}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          style={isFullScreenHero ? styles.heroCarousel : styles.bannerCarousel}
+          style={isFullScreenHero || customHeroHeight !== undefined ? styles.heroCarousel : styles.bannerCarousel}
           onMomentumScrollEnd={(event) => {
             const page = Math.round(event.nativeEvent.contentOffset.x / Dimensions.get('window').width);
             if (images.length > 1 && page === 0) {
@@ -1118,7 +1146,7 @@ export function CmsSectionView({ section, categoryPageSlug, categoryPageIconUrl,
             } else setHeroIndex(Math.max(0, page - 1));
           }}>
           {loopedBannerImages.map((item, index) => {
-            if (isFullScreenHero) return renderBanner(item, index);
+            if (isFullScreenHero || customHeroHeight !== undefined) return renderBanner(item, index);
             const image = record(item) ?? {};
             const key = `${text(image.imageUrl)}-${index}`;
             return renderBanner(item, index, {
@@ -1139,7 +1167,7 @@ export function CmsSectionView({ section, categoryPageSlug, categoryPageIconUrl,
             dotSize={6}
             gap={6}
             accessibilityLabel={`Banner ${heroIndex + 1} de ${images.length}`}
-            style={[styles.heroDots, isHome && styles.homeHeroDots]}
+            style={[styles.heroDots, isHome && isFullScreenHero && styles.homeHeroDots]}
           />
         )}
       </View>
