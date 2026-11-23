@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type TextStyle } from 'react-native';
 
 import { Fonts } from '@/constants/theme';
 
@@ -10,6 +10,7 @@ export const HELLO_BAR_CONTENT_HEIGHT = 60;
 type HelloBarItem = {
   text: string;
   action?: unknown;
+  [key: string]: unknown;
 };
 
 type Props = {
@@ -24,6 +25,12 @@ type CountdownValue = {
   hours: number;
   minutes: number;
   seconds: number;
+};
+
+type MarkdownSegment = {
+  text: string;
+  bold: boolean;
+  italic: boolean;
 };
 
 function stringValue(value: unknown) {
@@ -63,8 +70,37 @@ function parseItems(value: unknown): HelloBarItem[] {
     const source = record(item);
     if (!source) return [];
     const message = stringValue(source.text) || stringValue(source.message) || stringValue(source.label);
-    return message ? [{ text: message, action: source.action }] : [];
+    return message ? [{ ...source, text: message }] : [];
   });
+}
+
+function parseInlineMarkdown(value: string): MarkdownSegment[] {
+  const pattern = /(\*\*\*|___)(.+?)\1|(\*\*|__)(.+?)\3|(\*|_)(.+?)\5/g;
+  const segments: MarkdownSegment[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(value)) !== null) {
+    const start = match.index;
+    if (start > lastIndex) {
+      segments.push({ text: value.slice(lastIndex, start), bold: false, italic: false });
+    }
+
+    const delimiter = match[1] || match[3] || match[5] || '';
+    const content = match[2] || match[4] || match[6] || '';
+    segments.push({
+      text: content,
+      bold: delimiter.length > 1,
+      italic: delimiter.length === 1 || delimiter.length === 3,
+    });
+    lastIndex = start + match[0].length;
+  }
+
+  if (lastIndex < value.length) {
+    segments.push({ text: value.slice(lastIndex), bold: false, italic: false });
+  }
+
+  return segments.length > 0 ? segments : [{ text: value, bold: false, italic: false }];
 }
 
 function parseTargetDate(value: unknown) {
@@ -101,21 +137,33 @@ export function HelloBar({
   const autoplay = booleanValue(data.autoplay, true);
   const autoplayInterval = numberValue(data.autoplayIntervalSeconds, 5, 2, 30) * 1000;
   const showNavigationArrows = booleanValue(data.showNavigationArrows, true) && items.length > 1;
-  const showButton = booleanValue(data.showButton, true);
-  const buttonLabel = stringValue(data.buttonLabel) || stringValue(data.ctaText) || 'COMPRAR';
-  const buttonAction = data.buttonAction ?? data.action;
-  const targetDate = parseTargetDate(data.countdownEndDate) ?? parseTargetDate(data.endDate);
-  const showCountdown = booleanValue(data.showCountdown, false) && targetDate !== null;
+  const activeItem = items[activeIndex % Math.max(items.length, 1)];
+  const showButton = booleanValue(activeItem?.showButton, booleanValue(data.showButton, false));
+  const buttonLabel = stringValue(activeItem?.buttonLabel)
+    || stringValue(activeItem?.ctaText)
+    || stringValue(data.buttonLabel)
+    || stringValue(data.ctaText)
+    || 'COMPRAR';
+  const buttonAction = activeItem?.buttonAction ?? data.buttonAction ?? data.action ?? activeItem?.action;
+  const targetDate = parseTargetDate(activeItem?.countdownEndDate)
+    ?? parseTargetDate(activeItem?.endDate)
+    ?? parseTargetDate(data.countdownEndDate)
+    ?? parseTargetDate(data.endDate);
+  const showCountdown = booleanValue(activeItem?.showCountdown, booleanValue(data.showCountdown, false)) && targetDate !== null;
   const countdown = showCountdown && targetDate !== null ? countdownValue(targetDate, now) : null;
   const countdownExpired = countdown !== null && targetDate !== null && targetDate <= now;
-  const hideWhenExpired = booleanValue(data.hideWhenCountdownExpires, false);
-  const expiredText = stringValue(data.countdownExpiredText);
+  const hideWhenExpired = booleanValue(
+    activeItem?.hideWhenCountdownExpires,
+    booleanValue(data.hideWhenCountdownExpires, false),
+  );
+  const expiredText = stringValue(activeItem?.countdownExpiredText) || stringValue(data.countdownExpiredText);
   const backgroundColor = colorValue(data.backgroundColor, '#000000');
   const textColor = colorValue(data.textColor, '#FFFFFF');
+  const boldTextColor = colorValue(activeItem?.boldTextColor, textColor);
+  const italicTextColor = colorValue(activeItem?.italicTextColor, textColor);
   const buttonBackgroundColor = colorValue(data.buttonBackgroundColor, '#FFFFFF');
   const buttonTextColor = colorValue(data.buttonTextColor, '#000000');
-  const activeItem = items[activeIndex % Math.max(items.length, 1)];
-
+  const messageSegments = parseInlineMarkdown(activeItem?.text ?? '');
   useEffect(() => {
     if (!enabled || !autoplay || items.length < 2) return;
     const timer = setInterval(() => {
@@ -184,20 +232,27 @@ export function HelloBar({
           onPress={() => onAction?.(activeItem?.action)}
           style={styles.messageTarget}>
           <ThemedText numberOfLines={2} style={[styles.message, { color: textColor }]}>
-            {activeItem?.text ?? ''}
+            {messageSegments.map((segment, segmentIndex) => {
+              const inlineStyle: TextStyle = {
+                ...(segment.bold ? { fontFamily: Fonts.bold, fontWeight: '700' } : {}),
+                ...(segment.italic ? { fontStyle: 'italic' } : {}),
+                ...(segment.bold ? { color: boldTextColor } : segment.italic ? { color: italicTextColor } : {}),
+              };
+              return <Text key={String(segmentIndex)} style={inlineStyle}>{segment.text}</Text>;
+            })}
           </ThemedText>
         </Pressable>
 
         <View style={styles.offerRow}>
           {countdown && !countdownExpired && (
             <View style={styles.timer} accessibilityLabel="Contagem regressiva da oferta">
-              <CountdownUnit value={pad(countdown.days)} label={stringValue(data.daysLabel) || 'Dias'} textColor={textColor} />
+              <CountdownUnit value={pad(countdown.days)} label={stringValue(activeItem?.daysLabel) || stringValue(data.daysLabel) || 'Dias'} textColor={textColor} />
               <TimerSeparator textColor={textColor} />
-              <CountdownUnit value={pad(countdown.hours)} label={stringValue(data.hoursLabel) || 'Horas'} textColor={textColor} />
+              <CountdownUnit value={pad(countdown.hours)} label={stringValue(activeItem?.hoursLabel) || stringValue(data.hoursLabel) || 'Horas'} textColor={textColor} />
               <TimerSeparator textColor={textColor} />
-              <CountdownUnit value={pad(countdown.minutes)} label={stringValue(data.minutesLabel) || 'Minutos'} textColor={textColor} />
+              <CountdownUnit value={pad(countdown.minutes)} label={stringValue(activeItem?.minutesLabel) || stringValue(data.minutesLabel) || 'Minutos'} textColor={textColor} />
               <TimerSeparator textColor={textColor} />
-              <CountdownUnit value={pad(countdown.seconds)} label={stringValue(data.secondsLabel) || 'Segundos'} textColor={textColor} />
+              <CountdownUnit value={pad(countdown.seconds)} label={stringValue(activeItem?.secondsLabel) || stringValue(data.secondsLabel) || 'Segundos'} textColor={textColor} />
             </View>
           )}
 
