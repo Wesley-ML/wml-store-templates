@@ -2,6 +2,7 @@ import { CartIconButton } from '@/components/cart-icon-button';
 import { AssistantHeaderButton } from '@/components/assistant-header-button';
 import { CmsSectionView } from '@/components/cms-section';
 import { HomeSkeleton } from '@/components/home-skeleton';
+import { HELLO_BAR_CONTENT_HEIGHT } from '@/components/hello-bar';
 import HopeLogoIcon from '@/components/icons/HopeLogoIcon';
 import SearchIcon from '@/components/icons/SearchIcon';
 import { ThemedText } from '@/components/themed-text';
@@ -12,10 +13,22 @@ import { TabBarContext } from '@/context/tab-bar-context';
 import { useTheme } from '@/hooks/use-theme';
 import { CmsPage, getCmsPage } from '@/services/cms';
 import { resolvePageTheme, resolvePageThemeColors } from '@/services/cms-page-theme';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+function hasHelloBarMessage(value: unknown): boolean {
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return [item.text, item.message, item.label].some((text) => typeof text === 'string' && text.trim().length > 0);
+}
+
+function isCmsEnabled(value: unknown) {
+  return value !== false && !(typeof value === 'string' && value.trim().toLowerCase() === 'false');
+}
 
 export default function HomeScreen() {
   const [cmsPage, setCmsPage] = useState<CmsPage | null>(null);
@@ -58,18 +71,34 @@ function HomeScreenContent({ cmsPage, cmsLoading, cmsError }: { cmsPage: CmsPage
   const theme = useTheme();
   const dark = pageTheme.isDark;
   const [scrollY, setScrollY] = useState(0);
+  const [helloBarHeight, setHelloBarHeight] = useState<number | null>(null);
   const firstSection = cmsPage?.sections[0];
   const firstSectionMode = typeof firstSection?.data?.mode === 'string' ? firstSection.data.mode : '';
   const firstSectionIsHero = firstSection?.name === 'MultipleImageBanner' && firstSectionMode === 'SliderHero';
+  const firstSectionData = firstSection?.data ?? {};
+  const firstSectionItems = Array.isArray(firstSectionData.items) ? firstSectionData.items : [];
+  const firstSectionIsHelloBar = firstSection?.name === 'HelloBar';
+  const firstSectionHelloBarIsVisible = firstSectionIsHelloBar
+    && isCmsEnabled(firstSectionData.enabled)
+    && firstSectionItems.some(hasHelloBarMessage);
+  const measuredHelloBarHeight = helloBarHeight ?? HELLO_BAR_CONTENT_HEIGHT + insets.top;
+  const headerTop = firstSectionHelloBarIsVisible ? Math.max(0, measuredHelloBarHeight - scrollY) : 0;
+  const headerPaddingTop = firstSectionHelloBarIsVisible ? Math.max(0, insets.top - headerTop) : insets.top;
   const transparentHeader = firstSectionIsHero && scrollY <= 8;
   const headerForegroundColor = transparentHeader ? '#FFFFFF' : theme.text;
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: theme.background }]}>
       <SafeAreaView edges={['bottom']} style={styles.safeArea}>
+        {firstSectionHelloBarIsVisible && (
+          <StatusBar style={scrollY < measuredHelloBarHeight || dark ? 'light' : 'dark'} />
+        )}
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={[firstSectionIsHero ? styles.heroContent : styles.content, { backgroundColor: theme.background }]}
+          contentContainerStyle={[
+            firstSectionIsHelloBar ? styles.helloBarContent : firstSectionIsHero ? styles.heroContent : styles.content,
+            { backgroundColor: theme.background },
+          ]}
           scrollEventThrottle={16}
           onScroll={(event) => {
             const currentY = event.nativeEvent.contentOffset.y;
@@ -82,9 +111,17 @@ function HomeScreenContent({ cmsPage, cmsLoading, cmsError }: { cmsPage: CmsPage
           {cmsLoading && !cmsPage && <HomeSkeleton />}
           {cmsError && <ThemedText style={styles.errorText}>Nao foi possivel consultar o CMS agora.</ThemedText>}
           {!cmsLoading && !cmsError && cmsPage?.sections.length === 0 && <ThemedText themeColor="textSecondary">Nenhuma secao publicada foi encontrada.</ThemedText>}
-          {cmsPage?.sections.map((section, index) => <CmsSectionView key={`${section.name}-${index}`} section={section} isHome />)}
+          {cmsPage?.sections.map((section, index) => (
+            <CmsSectionView
+              key={section.name + '-' + index}
+              section={section}
+              isHome
+              helloBarTopInset={firstSectionHelloBarIsVisible && index === 0 ? insets.top : 0}
+              onHelloBarLayout={firstSectionHelloBarIsVisible && index === 0 ? setHelloBarHeight : undefined}
+            />
+          ))}
         </ScrollView>
-        <View style={[styles.header, { paddingTop: insets.top, minHeight: 48 + insets.top }, transparentHeader ? styles.heroHeader : [styles.scrolledHeader, dark && { backgroundColor: theme.background, borderBottomColor: theme.border }]]}>
+        <View style={[styles.header, { top: headerTop, paddingTop: headerPaddingTop, minHeight: 48 + headerPaddingTop }, transparentHeader ? styles.heroHeader : [styles.scrolledHeader, dark && { backgroundColor: theme.background, borderBottomColor: theme.border }]]}>
           <Pressable accessibilityLabel="Voltar ao topo" onPress={() => { scrollRef.current?.scrollTo({ y: 0, animated: true }); setHidden(false); }} style={styles.brandButton}>
             <HopeLogoIcon color={headerForegroundColor} width={76} height={20} />
           </Pressable>
@@ -113,4 +150,5 @@ const styles = StyleSheet.create({
   content: { gap: Spacing.three, paddingVertical: Spacing.five },
   errorText: { color: '#ed6560' },
   heroContent: { gap: Spacing.three, paddingBottom: Spacing.five },
+  helloBarContent: { gap: 0, paddingTop: 0, paddingBottom: Spacing.five },
 });

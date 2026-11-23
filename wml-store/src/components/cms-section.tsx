@@ -22,6 +22,7 @@ import {
   type CategoryBackgroundConfig,
 } from './category-background';
 import { CmsRichText } from './cms-rich-text';
+import { HelloBar } from './hello-bar';
 import ArrowLeftIAIcon from './icons/ArrowLeftIAicon';
 import ArrowRightAIcon from './icons/ArrowRightAicon';
 import ChevronRightIcon from './icons/ChevronRightIcon';
@@ -47,6 +48,8 @@ type Props = {
   searchPresentation?: boolean;
   categoryBackground?: CategoryBackgroundConfig;
   showCategoryParentHeader?: boolean;
+  helloBarTopInset?: number;
+  onHelloBarLayout?: (height: number) => void;
 };
 
 const CATEGORY_ACCORDION_LAYOUT = LinearTransition
@@ -924,7 +927,7 @@ function CategoryGroup({
   );
 }
 
-export function CmsSectionView({ section, categoryPageSlug, categoryPageIconUrl, isHome = false, isCategoryScreen = false, searchPresentation = false, categoryBackground, showCategoryParentHeader = true }: Props) {
+export function CmsSectionView({ section, categoryPageSlug, categoryPageIconUrl, isHome = false, isCategoryScreen = false, searchPresentation = false, categoryBackground, showCategoryParentHeader = true, helloBarTopInset = 0, onHelloBarLayout }: Props) {
   const router = useRouter();
   const pageTheme = usePageTheme();
   const theme = useTheme();
@@ -979,6 +982,17 @@ export function CmsSectionView({ section, categoryPageSlug, categoryPageIconUrl,
   // A configuração global pode ser publicada dentro da Home durante a fase
   // de teste, mas nunca deve aparecer como conteúdo visual da página.
   if (section.name === 'BottomTabSettings') return null;
+
+  if (section.name === 'HelloBar') {
+    return (
+      <HelloBar
+        data={data}
+        topInset={helloBarTopInset}
+        onLayout={onHelloBarLayout}
+        onAction={(action) => openCmsAction(router, action)}
+      />
+    );
+  }
 
   if (section.name === 'RichText') {
     const isCategoriesCmsHeading = text(data.title).trim().toLowerCase() === 'todas categorias';
