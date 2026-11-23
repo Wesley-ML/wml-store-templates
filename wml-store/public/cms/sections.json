@@ -110,6 +110,22 @@
 								"type": "string",
 								"default": "COMPRAR"
 							},
+							"buttonBackgroundColor": {
+								"title": "Cor de fundo do botão deste item",
+								"type": "string",
+								"pattern": "^#(?:[A-Fa-f0-9]{3}|[A-Fa-f0-9]{4}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$",
+								"widget": {
+									"ui:widget": "color"
+								}
+							},
+							"buttonTextColor": {
+								"title": "Cor do texto do botão deste item",
+								"type": "string",
+								"pattern": "^#(?:[A-Fa-f0-9]{3}|[A-Fa-f0-9]{4}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$",
+								"widget": {
+									"ui:widget": "color"
+								}
+							},
 							"buttonAction": {
 								"title": "Destino do botão",
 								"type": "object",

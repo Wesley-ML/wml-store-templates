@@ -1,5 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type TextStyle } from 'react-native';
+import Animated, {
+  Easing,
+  ReduceMotion,
+  SlideInLeft,
+  SlideInRight,
+  SlideOutLeft,
+  SlideOutRight,
+} from 'react-native-reanimated';
 
 import { Fonts } from '@/constants/theme';
 
@@ -132,7 +140,12 @@ export function HelloBar({
 }: Props) {
   const items = parseItems(data.items);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [pendingIndex, setPendingIndex] = useState<number | null>(null);
+  const [slideDirection, setSlideDirection] = useState<'next' | 'previous'>('next');
+  const [slideContentHeight, setSlideContentHeight] = useState(HELLO_BAR_CONTENT_HEIGHT);
   const [now, setNow] = useState(() => Date.now());
+  const hasRenderedInitialItem = useRef(false);
+  const activeIndexRef = useRef(0);
   const enabled = booleanValue(data.enabled, true);
   const autoplay = booleanValue(data.autoplay, true);
   const autoplayInterval = numberValue(data.autoplayIntervalSeconds, 5, 2, 30) * 1000;
@@ -161,16 +174,50 @@ export function HelloBar({
   const textColor = colorValue(data.textColor, '#FFFFFF');
   const boldTextColor = colorValue(activeItem?.boldTextColor, textColor);
   const italicTextColor = colorValue(activeItem?.italicTextColor, textColor);
-  const buttonBackgroundColor = colorValue(data.buttonBackgroundColor, '#FFFFFF');
-  const buttonTextColor = colorValue(data.buttonTextColor, '#000000');
+  const buttonBackgroundColor = colorValue(
+    activeItem?.buttonBackgroundColor,
+    colorValue(data.buttonBackgroundColor, '#FFFFFF'),
+  );
+  const buttonTextColor = colorValue(
+    activeItem?.buttonTextColor,
+    colorValue(data.buttonTextColor, '#000000'),
+  );
   const messageSegments = parseInlineMarkdown(activeItem?.text ?? '');
+
+  const requestSlide = useCallback((step: number) => {
+    if (items.length < 2) return;
+    setSlideDirection(step > 0 ? 'next' : 'previous');
+    setPendingIndex((currentPending) => {
+      const baseIndex = currentPending ?? activeIndex;
+      return (baseIndex + step + items.length) % items.length;
+    });
+  }, [activeIndex, items.length]);
+
+  const enteringAnimation = slideDirection === 'next'
+    ? SlideInRight.duration(320).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.System)
+    : SlideInLeft.duration(320).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.System);
+  const exitingAnimation = slideDirection === 'next'
+    ? SlideOutLeft.duration(320).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.System)
+    : SlideOutRight.duration(320).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.System);
+
+  useEffect(() => {
+    hasRenderedInitialItem.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (pendingIndex === null) return;
+    activeIndexRef.current = pendingIndex;
+    setActiveIndex(pendingIndex);
+    setPendingIndex(null);
+  }, [pendingIndex]);
+
   useEffect(() => {
     if (!enabled || !autoplay || items.length < 2) return;
     const timer = setInterval(() => {
-      setActiveIndex((current) => (current + 1) % items.length);
+      requestSlide(1);
     }, autoplayInterval);
     return () => clearInterval(timer);
-  }, [autoplay, autoplayInterval, enabled, items.length]);
+  }, [autoplay, autoplayInterval, enabled, items.length, requestSlide]);
 
   useEffect(() => {
     if (!enabled || !showCountdown || targetDate === null || targetDate <= Date.now()) return;
@@ -202,7 +249,7 @@ export function HelloBar({
       onLayout={handleLayout}
       style={[
         styles.container,
-        { backgroundColor, paddingTop: topInset, minHeight: HELLO_BAR_CONTENT_HEIGHT + topInset },
+        { backgroundColor, paddingTop: topInset, minHeight: slideContentHeight + topInset },
       ]}>
       {showNavigationArrows && (
         <>
@@ -210,7 +257,7 @@ export function HelloBar({
             accessibilityLabel="Oferta anterior"
             accessibilityRole="button"
             hitSlop={8}
-            onPress={() => setActiveIndex((current) => (current - 1 + items.length) % items.length)}
+            onPress={() => requestSlide(-1)}
             style={[styles.arrow, { top: topInset }, styles.leftArrow]}>
             <ThemedText style={[styles.arrowText, { color: textColor }]}>‹</ThemedText>
           </Pressable>
@@ -218,62 +265,73 @@ export function HelloBar({
             accessibilityLabel="Próxima oferta"
             accessibilityRole="button"
             hitSlop={8}
-            onPress={() => setActiveIndex((current) => (current + 1) % items.length)}
+            onPress={() => requestSlide(1)}
             style={[styles.arrow, { top: topInset }, styles.rightArrow]}>
             <ThemedText style={[styles.arrowText, { color: textColor }]}>›</ThemedText>
           </Pressable>
         </>
       )}
 
-      <View style={[styles.content, showNavigationArrows && styles.contentWithArrows]}>
-        <Pressable
-          accessibilityRole={hasAction(activeItem?.action) ? 'link' : undefined}
-          disabled={!hasAction(activeItem?.action)}
-          onPress={() => onAction?.(activeItem?.action)}
-          style={styles.messageTarget}>
-          <ThemedText numberOfLines={2} style={[styles.message, { color: textColor }]}>
-            {messageSegments.map((segment, segmentIndex) => {
-              const inlineStyle: TextStyle = {
-                ...(segment.bold ? { fontFamily: Fonts.bold, fontWeight: '700' } : {}),
-                ...(segment.italic ? { fontStyle: 'italic' } : {}),
-                ...(segment.bold ? { color: boldTextColor } : segment.italic ? { color: italicTextColor } : {}),
-              };
-              return <Text key={String(segmentIndex)} style={inlineStyle}>{segment.text}</Text>;
-            })}
-          </ThemedText>
-        </Pressable>
+      <View style={[styles.content, { minHeight: slideContentHeight }]}>
+        <Animated.View
+          key={activeIndex}
+          entering={hasRenderedInitialItem.current ? enteringAnimation : undefined}
+          exiting={exitingAnimation}
+          onLayout={(event) => {
+            if (activeIndex !== activeIndexRef.current) return;
+            const measuredHeight = Math.max(HELLO_BAR_CONTENT_HEIGHT, Math.ceil(event.nativeEvent.layout.height));
+            setSlideContentHeight((current) => current === measuredHeight ? current : measuredHeight);
+          }}
+          style={[styles.slideContent, showNavigationArrows && styles.contentWithArrows]}>
+          <Pressable
+            accessibilityRole={hasAction(activeItem?.action) ? 'link' : undefined}
+            disabled={!hasAction(activeItem?.action)}
+            onPress={() => onAction?.(activeItem?.action)}
+            style={styles.messageTarget}>
+            <ThemedText style={[styles.message, { color: textColor }]}>
+              {messageSegments.map((segment, segmentIndex) => {
+                const inlineStyle: TextStyle = {
+                  ...(segment.bold ? { fontFamily: Fonts.bold, fontWeight: '700' } : {}),
+                  ...(segment.italic ? { fontStyle: 'italic' } : {}),
+                  ...(segment.bold ? { color: boldTextColor } : segment.italic ? { color: italicTextColor } : {}),
+                };
+                return <Text key={String(segmentIndex)} style={inlineStyle}>{segment.text}</Text>;
+              })}
+            </ThemedText>
+          </Pressable>
 
-        <View style={styles.offerRow}>
-          {countdown && !countdownExpired && (
-            <View style={styles.timer} accessibilityLabel="Contagem regressiva da oferta">
-              <CountdownUnit value={pad(countdown.days)} label={stringValue(activeItem?.daysLabel) || stringValue(data.daysLabel) || 'Dias'} textColor={textColor} />
-              <TimerSeparator textColor={textColor} />
-              <CountdownUnit value={pad(countdown.hours)} label={stringValue(activeItem?.hoursLabel) || stringValue(data.hoursLabel) || 'Horas'} textColor={textColor} />
-              <TimerSeparator textColor={textColor} />
-              <CountdownUnit value={pad(countdown.minutes)} label={stringValue(activeItem?.minutesLabel) || stringValue(data.minutesLabel) || 'Minutos'} textColor={textColor} />
-              <TimerSeparator textColor={textColor} />
-              <CountdownUnit value={pad(countdown.seconds)} label={stringValue(activeItem?.secondsLabel) || stringValue(data.secondsLabel) || 'Segundos'} textColor={textColor} />
-            </View>
-          )}
+          <View style={styles.offerRow}>
+            {countdown && !countdownExpired && (
+              <View style={styles.timer} accessibilityLabel="Contagem regressiva da oferta">
+                <CountdownUnit value={pad(countdown.days)} label={stringValue(activeItem?.daysLabel) || stringValue(data.daysLabel) || 'Dias'} textColor={textColor} />
+                <TimerSeparator textColor={textColor} />
+                <CountdownUnit value={pad(countdown.hours)} label={stringValue(activeItem?.hoursLabel) || stringValue(data.hoursLabel) || 'Horas'} textColor={textColor} />
+                <TimerSeparator textColor={textColor} />
+                <CountdownUnit value={pad(countdown.minutes)} label={stringValue(activeItem?.minutesLabel) || stringValue(data.minutesLabel) || 'Minutos'} textColor={textColor} />
+                <TimerSeparator textColor={textColor} />
+                <CountdownUnit value={pad(countdown.seconds)} label={stringValue(activeItem?.secondsLabel) || stringValue(data.secondsLabel) || 'Segundos'} textColor={textColor} />
+              </View>
+            )}
 
-          {countdownExpired && !!expiredText && (
-            <ThemedText numberOfLines={1} style={[styles.expiredText, { color: textColor }]}>{expiredText}</ThemedText>
-          )}
+            {countdownExpired && !!expiredText && (
+              <ThemedText numberOfLines={1} style={[styles.expiredText, { color: textColor }]}>{expiredText}</ThemedText>
+            )}
 
-          {showButton && !!buttonLabel && (
-            <Pressable
-              accessibilityRole={hasAction(effectiveButtonAction) ? 'link' : 'button'}
-              disabled={!hasAction(effectiveButtonAction)}
-              onPress={() => onAction?.(effectiveButtonAction)}
-              style={({ pressed }) => [
-                styles.button,
-                { backgroundColor: buttonBackgroundColor },
-                pressed && styles.pressed,
-              ]}>
-              <ThemedText numberOfLines={1} style={[styles.buttonText, { color: buttonTextColor }]}>{buttonLabel}</ThemedText>
-            </Pressable>
-          )}
-        </View>
+            {showButton && !!buttonLabel && (
+              <Pressable
+                accessibilityRole={hasAction(effectiveButtonAction) ? 'link' : 'button'}
+                disabled={!hasAction(effectiveButtonAction)}
+                onPress={() => onAction?.(effectiveButtonAction)}
+                style={({ pressed }) => [
+                  styles.button,
+                  { backgroundColor: buttonBackgroundColor },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText numberOfLines={1} style={[styles.buttonText, { color: buttonTextColor }]}>{buttonLabel}</ThemedText>
+              </Pressable>
+            )}
+          </View>
+        </Animated.View>
       </View>
     </View>
   );
@@ -316,19 +374,32 @@ const styles = StyleSheet.create({
     fontWeight: '300',
   },
   content: {
+    position: 'relative',
     minHeight: HELLO_BAR_CONTENT_HEIGHT,
+    overflow: 'hidden',
+  },
+  slideContent: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    left: 0,
+    minHeight: HELLO_BAR_CONTENT_HEIGHT,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 4,
-    gap: 2,
+    gap: 8,
   },
   contentWithArrows: {
     paddingLeft: 36,
     paddingRight: 36,
   },
   messageTarget: {
-    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    flexShrink: 1,
     alignItems: 'center',
   },
   message: {
