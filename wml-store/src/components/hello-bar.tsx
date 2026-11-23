@@ -168,6 +168,39 @@ function parseTargetDate(value: unknown) {
     return null;
   }
 
+  // A API da VTEX pode entregar o date-time em inglês, por exemplo
+  // "Nov 30, 2026 12:0 AM". O Hermes não interpreta esse formato de forma
+  // consistente, então montamos a data explicitamente no fuso local do aparelho.
+  const cmsDate = source.match(
+    /^([a-z]{3,9})\s+(\d{1,2}),\s*(\d{4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?\s*(am|pm)$/i,
+  );
+  if (cmsDate) {
+    const [, monthText, dayText, yearText, hourText, minuteText, secondText = '0', meridiem] = cmsDate;
+    const monthIndex = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+      .indexOf(monthText.slice(0, 3).toLowerCase());
+    const day = Number(dayText);
+    const year = Number(yearText);
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    const second = Number(secondText);
+    if (monthIndex < 0 || hour < 1 || hour > 12 || minute > 59 || second > 59) return null;
+
+    const hour24 = (hour % 12) + (meridiem.toLowerCase() === 'pm' ? 12 : 0);
+    const date = new Date(year, monthIndex, day, hour24, minute, second);
+    if (
+      date.getFullYear() === year
+      && date.getMonth() === monthIndex
+      && date.getDate() === day
+      && date.getHours() === hour24
+      && date.getMinutes() === minute
+      && date.getSeconds() === second
+    ) {
+      return date.getTime();
+    }
+
+    return null;
+  }
+
   const normalizedSource = /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)$/i.test(source)
     ? source.replace(' ', 'T')
     : source;
