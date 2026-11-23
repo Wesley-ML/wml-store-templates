@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type TextStyle } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type TextStyle } from 'react-native';
 import Animated, {
   Easing,
   ReduceMotion,
@@ -53,9 +53,12 @@ function record(value: unknown): Record<string, unknown> | null {
 
 function booleanValue(value: unknown, fallback: boolean) {
   if (typeof value === 'boolean') return value;
+  if (value === 1) return true;
+  if (value === 0) return false;
   if (typeof value === 'string') {
-    if (value.trim().toLowerCase() === 'true') return true;
-    if (value.trim().toLowerCase() === 'false') return false;
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on', 'sim'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off', 'nao', 'não'].includes(normalized)) return false;
   }
   return fallback;
 }
@@ -112,10 +115,68 @@ function parseInlineMarkdown(value: string): MarkdownSegment[] {
 }
 
 function parseTargetDate(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.abs(value) < 1_000_000_000_000 ? value * 1000 : value;
+  }
+
+  const dateObject = record(value);
+  if (dateObject) {
+    const dateValue = dateObject.dateTime
+      ?? dateObject.datetime
+      ?? dateObject.date
+      ?? dateObject.value
+      ?? dateObject.timestamp
+      ?? dateObject._seconds
+      ?? dateObject.seconds;
+    if (dateValue !== undefined) {
+      const time = stringValue(dateObject.time);
+      return parseTargetDate(time ? `${stringValue(dateValue)} ${time}` : dateValue);
+    }
+  }
+
   const source = stringValue(value);
   if (!source) return null;
-  const timestamp = new Date(source).getTime();
+  if (/^\d{10,13}$/.test(source)) {
+    const timestamp = Number(source);
+    return source.length <= 10 ? timestamp * 1000 : timestamp;
+  }
+
+  const localizedDate = source.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+  if (localizedDate) {
+    const [, dayText, monthText, yearText, hourText = '0', minuteText = '0', secondText = '0'] = localizedDate;
+    const day = Number(dayText);
+    const month = Number(monthText);
+    const year = Number(yearText);
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    const second = Number(secondText);
+    const date = new Date(year, month - 1, day, hour, minute, second);
+
+    if (
+      date.getFullYear() === year
+      && date.getMonth() === month - 1
+      && date.getDate() === day
+      && date.getHours() === hour
+      && date.getMinutes() === minute
+      && date.getSeconds() === second
+    ) {
+      return date.getTime();
+    }
+
+    return null;
+  }
+
+  const normalizedSource = /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)$/i.test(source)
+    ? source.replace(' ', 'T')
+    : source;
+  const timestamp = new Date(normalizedSource).getTime();
   return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function shouldHandleHorizontalSwipe(gestureState: { dx: number; dy: number }) {
+  return Math.abs(gestureState.dx) >= 12 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.2;
 }
 
 function countdownValue(target: number, now: number): CountdownValue {
@@ -162,7 +223,8 @@ export function HelloBar({
     ?? parseTargetDate(activeItem?.endDate)
     ?? parseTargetDate(data.countdownEndDate)
     ?? parseTargetDate(data.endDate);
-  const showCountdown = booleanValue(activeItem?.showCountdown, booleanValue(data.showCountdown, false)) && targetDate !== null;
+  const countdownSetting = activeItem?.showCountdown ?? data.showCountdown;
+  const showCountdown = targetDate !== null && booleanValue(countdownSetting, true);
   const countdown = showCountdown && targetDate !== null ? countdownValue(targetDate, now) : null;
   const countdownExpired = countdown !== null && targetDate !== null && targetDate <= now;
   const hideWhenExpired = booleanValue(
@@ -192,6 +254,18 @@ export function HelloBar({
       return (baseIndex + step + items.length) % items.length;
     });
   }, [activeIndex, items.length]);
+
+  const swipeResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gestureState) => items.length > 1 && shouldHandleHorizontalSwipe(gestureState),
+    onMoveShouldSetPanResponderCapture: (_, gestureState) => items.length > 1 && shouldHandleHorizontalSwipe(gestureState),
+    onPanResponderRelease: (_, gestureState) => {
+      const distance = Math.abs(gestureState.dx);
+      const velocity = Math.abs(gestureState.vx);
+      if (distance >= 36 || (distance >= 18 && velocity >= 0.35)) {
+        requestSlide(gestureState.dx < 0 ? 1 : -1);
+      }
+    },
+  }), [items.length, requestSlide]);
 
   const enteringAnimation = slideDirection === 'next'
     ? SlideInRight.duration(320).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.System)
@@ -251,28 +325,28 @@ export function HelloBar({
         styles.container,
         { backgroundColor, paddingTop: topInset, minHeight: slideContentHeight + topInset },
       ]}>
-      {showNavigationArrows && (
-        <>
-          <Pressable
-            accessibilityLabel="Oferta anterior"
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={() => requestSlide(-1)}
-            style={[styles.arrow, { top: topInset }, styles.leftArrow]}>
-            <ThemedText style={[styles.arrowText, { color: textColor }]}>‹</ThemedText>
-          </Pressable>
-          <Pressable
-            accessibilityLabel="Próxima oferta"
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={() => requestSlide(1)}
-            style={[styles.arrow, { top: topInset }, styles.rightArrow]}>
-            <ThemedText style={[styles.arrowText, { color: textColor }]}>›</ThemedText>
-          </Pressable>
-        </>
-      )}
+      <View {...swipeResponder.panHandlers} style={[styles.content, { minHeight: slideContentHeight }]}>
+        {showNavigationArrows && (
+          <>
+            <Pressable
+              accessibilityLabel="Oferta anterior"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => requestSlide(-1)}
+              style={[styles.arrow, styles.leftArrow]}>
+              <ThemedText style={[styles.arrowText, { color: textColor }]}>‹</ThemedText>
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Próxima oferta"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => requestSlide(1)}
+              style={[styles.arrow, styles.rightArrow]}>
+              <ThemedText style={[styles.arrowText, { color: textColor }]}>›</ThemedText>
+            </Pressable>
+          </>
+        )}
 
-      <View style={[styles.content, { minHeight: slideContentHeight }]}>
         <Animated.View
           key={activeIndex}
           entering={hasRenderedInitialItem.current ? enteringAnimation : undefined}
@@ -300,37 +374,35 @@ export function HelloBar({
             </ThemedText>
           </Pressable>
 
-          <View style={styles.offerRow}>
-            {countdown && !countdownExpired && (
-              <View style={styles.timer} accessibilityLabel="Contagem regressiva da oferta">
-                <CountdownUnit value={pad(countdown.days)} label={stringValue(activeItem?.daysLabel) || stringValue(data.daysLabel) || 'Dias'} textColor={textColor} />
-                <TimerSeparator textColor={textColor} />
-                <CountdownUnit value={pad(countdown.hours)} label={stringValue(activeItem?.hoursLabel) || stringValue(data.hoursLabel) || 'Horas'} textColor={textColor} />
-                <TimerSeparator textColor={textColor} />
-                <CountdownUnit value={pad(countdown.minutes)} label={stringValue(activeItem?.minutesLabel) || stringValue(data.minutesLabel) || 'Minutos'} textColor={textColor} />
-                <TimerSeparator textColor={textColor} />
-                <CountdownUnit value={pad(countdown.seconds)} label={stringValue(activeItem?.secondsLabel) || stringValue(data.secondsLabel) || 'Segundos'} textColor={textColor} />
-              </View>
-            )}
+          {countdown && !countdownExpired && (
+            <View style={styles.timer} accessibilityLabel="Contagem regressiva da oferta">
+              <CountdownUnit value={pad(countdown.days)} label={stringValue(activeItem?.daysLabel) || stringValue(data.daysLabel) || 'Dias'} textColor={textColor} />
+              <TimerSeparator textColor={textColor} />
+              <CountdownUnit value={pad(countdown.hours)} label={stringValue(activeItem?.hoursLabel) || stringValue(data.hoursLabel) || 'Horas'} textColor={textColor} />
+              <TimerSeparator textColor={textColor} />
+              <CountdownUnit value={pad(countdown.minutes)} label={stringValue(activeItem?.minutesLabel) || stringValue(data.minutesLabel) || 'Minutos'} textColor={textColor} />
+              <TimerSeparator textColor={textColor} />
+              <CountdownUnit value={pad(countdown.seconds)} label={stringValue(activeItem?.secondsLabel) || stringValue(data.secondsLabel) || 'Segundos'} textColor={textColor} />
+            </View>
+          )}
 
-            {countdownExpired && !!expiredText && (
-              <ThemedText numberOfLines={1} style={[styles.expiredText, { color: textColor }]}>{expiredText}</ThemedText>
-            )}
+          {countdownExpired && !!expiredText && (
+            <ThemedText numberOfLines={1} style={[styles.expiredText, { color: textColor }]}>{expiredText}</ThemedText>
+          )}
 
-            {showButton && !!buttonLabel && (
-              <Pressable
-                accessibilityRole={hasAction(effectiveButtonAction) ? 'link' : 'button'}
-                disabled={!hasAction(effectiveButtonAction)}
-                onPress={() => onAction?.(effectiveButtonAction)}
-                style={({ pressed }) => [
-                  styles.button,
-                  { backgroundColor: buttonBackgroundColor },
-                  pressed && styles.pressed,
-                ]}>
-                <ThemedText numberOfLines={1} style={[styles.buttonText, { color: buttonTextColor }]}>{buttonLabel}</ThemedText>
-              </Pressable>
-            )}
-          </View>
+          {showButton && !!buttonLabel && (
+            <Pressable
+              accessibilityRole={hasAction(effectiveButtonAction) ? 'link' : 'button'}
+              disabled={!hasAction(effectiveButtonAction)}
+              onPress={() => onAction?.(effectiveButtonAction)}
+              style={({ pressed }) => [
+                styles.button,
+                { backgroundColor: buttonBackgroundColor },
+                pressed && styles.pressed,
+              ]}>
+              <ThemedText numberOfLines={1} style={[styles.buttonText, { color: buttonTextColor }]}>{buttonLabel}</ThemedText>
+            </Pressable>
+          )}
         </Animated.View>
       </View>
     </View>
@@ -409,16 +481,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  offerRow: {
-    minHeight: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
   timer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    flexShrink: 0,
     gap: 2,
   },
   unit: {
