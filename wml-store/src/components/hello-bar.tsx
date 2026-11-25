@@ -16,7 +16,7 @@ import { ThemedText } from './themed-text';
 export const HELLO_BAR_CONTENT_HEIGHT = 60;
 
 type HelloBarItem = {
-  text: string;
+  text?: string;
   action?: unknown;
   [key: string]: unknown;
 };
@@ -81,8 +81,15 @@ function parseItems(value: unknown): HelloBarItem[] {
     const source = record(item);
     if (!source) return [];
     const message = stringValue(source.text) || stringValue(source.message) || stringValue(source.label);
-    return message ? [{ ...source, text: message }] : [];
+    const targetDate = parseTargetDate(source.countdownEndDate ?? source.endDate);
+    const hasCountdown = targetDate !== null && booleanValue(source.showCountdown, true);
+    const hasButton = booleanValue(source.showButton, false);
+    return message || hasCountdown || hasButton ? [{ ...source, text: message }] : [];
   });
+}
+
+export function isHelloBarVisible(data: Record<string, unknown>) {
+  return booleanValue(data.enabled, true) && parseItems(data.items).length > 0;
 }
 
 function parseInlineMarkdown(value: string): MarkdownSegment[] {
@@ -265,10 +272,12 @@ export function HelloBar({
     booleanValue(data.hideWhenCountdownExpires, false),
   );
   const expiredText = stringValue(activeItem?.countdownExpiredText) || stringValue(data.countdownExpiredText);
-  const backgroundColor = colorValue(data.backgroundColor, '#000000');
+  const backgroundColor = colorValue(activeItem?.backgroundColor, colorValue(data.backgroundColor, '#000000'));
   const textColor = colorValue(data.textColor, '#FFFFFF');
-  const boldTextColor = colorValue(activeItem?.boldTextColor, textColor);
-  const italicTextColor = colorValue(activeItem?.italicTextColor, textColor);
+  const itemTextColor = colorValue(activeItem?.textColor, textColor);
+  const boldTextColor = colorValue(activeItem?.boldTextColor, itemTextColor);
+  const italicTextColor = colorValue(activeItem?.italicTextColor, itemTextColor);
+  const showCountdownLabels = booleanValue(activeItem?.showCountdownLabels, true);
   const buttonBackgroundColor = colorValue(
     activeItem?.buttonBackgroundColor,
     colorValue(data.buttonBackgroundColor, '#FFFFFF'),
@@ -278,6 +287,10 @@ export function HelloBar({
     colorValue(data.buttonTextColor, '#000000'),
   );
   const messageSegments = parseInlineMarkdown(activeItem?.text ?? '');
+  const hasLiveCountdown = countdown !== null && !countdownExpired;
+  const hasExpiredMessage = countdownExpired && !!expiredText;
+  const hasVisibleButton = showButton && !!buttonLabel;
+  const hasControls = hasLiveCountdown || hasExpiredMessage || hasVisibleButton;
 
   const requestSlide = useCallback((step: number) => {
     if (items.length < 2) return;
@@ -384,69 +397,82 @@ export function HelloBar({
           key={activeIndex}
           entering={hasRenderedInitialItem.current ? enteringAnimation : undefined}
           exiting={exitingAnimation}
-          onLayout={(event) => {
-            if (activeIndex !== activeIndexRef.current) return;
-            const measuredHeight = Math.max(HELLO_BAR_CONTENT_HEIGHT, Math.ceil(event.nativeEvent.layout.height));
-            setSlideContentHeight((current) => current === measuredHeight ? current : measuredHeight);
-          }}
-          style={[styles.slideContent, showNavigationArrows && styles.contentWithArrows]}>
-          <Pressable
-            accessibilityRole={hasAction(activeItem?.action) ? 'link' : undefined}
-            disabled={!hasAction(activeItem?.action)}
-            onPress={() => onAction?.(activeItem?.action)}
-            style={styles.messageTarget}>
-            <ThemedText style={[styles.message, { color: textColor }]}>
-              {messageSegments.map((segment, segmentIndex) => {
-                const inlineStyle: TextStyle = {
-                  ...(segment.bold ? { fontFamily: Fonts.bold, fontWeight: '700' } : {}),
-                  ...(segment.italic ? { fontStyle: 'italic' } : {}),
-                  ...(segment.bold ? { color: boldTextColor } : segment.italic ? { color: italicTextColor } : {}),
-                };
-                return <Text key={String(segmentIndex)} style={inlineStyle}>{segment.text}</Text>;
-              })}
-            </ThemedText>
-          </Pressable>
+          style={styles.slideViewport}>
+          <View
+            onLayout={(event) => {
+              if (activeIndex !== activeIndexRef.current) return;
+              const measuredHeight = Math.max(HELLO_BAR_CONTENT_HEIGHT, Math.ceil(event.nativeEvent.layout.height));
+              setSlideContentHeight((current) => current === measuredHeight ? current : measuredHeight);
+            }}
+            style={[
+              styles.slideContent,
+              showNavigationArrows && styles.contentWithArrows,
+              { backgroundColor },
+            ]}>
+            {!!activeItem?.text && (
+              <Pressable
+                accessibilityRole={hasAction(activeItem?.action) ? 'link' : undefined}
+                disabled={!hasAction(activeItem?.action)}
+                onPress={() => onAction?.(activeItem?.action)}
+                style={styles.messageTarget}>
+                <ThemedText style={[styles.message, { color: itemTextColor }]}>
+                  {messageSegments.map((segment, segmentIndex) => {
+                    const inlineStyle: TextStyle = {
+                      ...(segment.bold ? { fontFamily: Fonts.bold, fontWeight: '700' } : {}),
+                      ...(segment.italic ? { fontStyle: 'italic' } : {}),
+                      ...(segment.bold ? { color: boldTextColor } : segment.italic ? { color: italicTextColor } : {}),
+                    };
+                    return <Text key={String(segmentIndex)} style={inlineStyle}>{segment.text}</Text>;
+                  })}
+                </ThemedText>
+              </Pressable>
+            )}
 
-          {countdown && !countdownExpired && (
-            <View style={styles.timer} accessibilityLabel="Contagem regressiva da oferta">
-              <CountdownUnit value={pad(countdown.days)} label={stringValue(activeItem?.daysLabel) || stringValue(data.daysLabel) || 'Dias'} textColor={textColor} />
-              <TimerSeparator textColor={textColor} />
-              <CountdownUnit value={pad(countdown.hours)} label={stringValue(activeItem?.hoursLabel) || stringValue(data.hoursLabel) || 'Horas'} textColor={textColor} />
-              <TimerSeparator textColor={textColor} />
-              <CountdownUnit value={pad(countdown.minutes)} label={stringValue(activeItem?.minutesLabel) || stringValue(data.minutesLabel) || 'Minutos'} textColor={textColor} />
-              <TimerSeparator textColor={textColor} />
-              <CountdownUnit value={pad(countdown.seconds)} label={stringValue(activeItem?.secondsLabel) || stringValue(data.secondsLabel) || 'Segundos'} textColor={textColor} />
-            </View>
-          )}
+            {hasControls && (
+              <View style={styles.controlsRow}>
+                {hasLiveCountdown && countdown && (
+                  <View style={styles.timer} accessibilityLabel="Contagem regressiva da oferta">
+                    <CountdownUnit value={pad(countdown.days)} label={stringValue(activeItem?.daysLabel) || stringValue(data.daysLabel) || 'Dias'} textColor={itemTextColor} showLabel={showCountdownLabels} />
+                    <TimerSeparator textColor={itemTextColor} />
+                    <CountdownUnit value={pad(countdown.hours)} label={stringValue(activeItem?.hoursLabel) || stringValue(data.hoursLabel) || 'Horas'} textColor={itemTextColor} showLabel={showCountdownLabels} />
+                    <TimerSeparator textColor={itemTextColor} />
+                    <CountdownUnit value={pad(countdown.minutes)} label={stringValue(activeItem?.minutesLabel) || stringValue(data.minutesLabel) || 'Minutos'} textColor={itemTextColor} showLabel={showCountdownLabels} />
+                    <TimerSeparator textColor={itemTextColor} />
+                    <CountdownUnit value={pad(countdown.seconds)} label={stringValue(activeItem?.secondsLabel) || stringValue(data.secondsLabel) || 'Segundos'} textColor={itemTextColor} showLabel={showCountdownLabels} />
+                  </View>
+                )}
 
-          {countdownExpired && !!expiredText && (
-            <ThemedText numberOfLines={1} style={[styles.expiredText, { color: textColor }]}>{expiredText}</ThemedText>
-          )}
+                {hasExpiredMessage && (
+                  <ThemedText numberOfLines={1} style={[styles.expiredText, { color: itemTextColor }]}>{expiredText}</ThemedText>
+                )}
 
-          {showButton && !!buttonLabel && (
-            <Pressable
-              accessibilityRole={hasAction(effectiveButtonAction) ? 'link' : 'button'}
-              disabled={!hasAction(effectiveButtonAction)}
-              onPress={() => onAction?.(effectiveButtonAction)}
-              style={({ pressed }) => [
-                styles.button,
-                { backgroundColor: buttonBackgroundColor },
-                pressed && styles.pressed,
-              ]}>
-              <ThemedText numberOfLines={1} style={[styles.buttonText, { color: buttonTextColor }]}>{buttonLabel}</ThemedText>
-            </Pressable>
-          )}
+                {hasVisibleButton && (
+                  <Pressable
+                    accessibilityRole={hasAction(effectiveButtonAction) ? 'link' : 'button'}
+                    disabled={!hasAction(effectiveButtonAction)}
+                    onPress={() => onAction?.(effectiveButtonAction)}
+                    style={({ pressed }) => [
+                      styles.button,
+                      { backgroundColor: buttonBackgroundColor },
+                      pressed && styles.pressed,
+                    ]}>
+                    <ThemedText numberOfLines={1} style={[styles.buttonText, { color: buttonTextColor }]}>{buttonLabel}</ThemedText>
+                  </Pressable>
+                )}
+              </View>
+            )}
+          </View>
         </Animated.View>
       </View>
     </View>
   );
 }
 
-function CountdownUnit({ value, label, textColor }: { value: string; label: string; textColor: string }) {
+function CountdownUnit({ value, label, textColor, showLabel }: { value: string; label: string; textColor: string; showLabel: boolean }) {
   return (
     <View style={styles.unit}>
       <ThemedText style={[styles.unitValue, { color: textColor }]}>{value}</ThemedText>
-      <ThemedText numberOfLines={1} style={[styles.unitLabel, { color: textColor }]}>{label}</ThemedText>
+      {showLabel && !!label && <ThemedText numberOfLines={1} style={[styles.unitLabel, { color: textColor }]}>{label}</ThemedText>}
     </View>
   );
 }
@@ -483,18 +509,31 @@ const styles = StyleSheet.create({
     minHeight: HELLO_BAR_CONTENT_HEIGHT,
     overflow: 'hidden',
   },
-  slideContent: {
+  slideViewport: {
     position: 'absolute',
     top: 0,
     right: 0,
+    bottom: 0,
     left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slideContent: {
+    width: '100%',
     minHeight: HELLO_BAR_CONTENT_HEIGHT,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 4,
+    gap: 2,
+  },
+  controlsRow: {
+    maxWidth: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
   contentWithArrows: {

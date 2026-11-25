@@ -4,7 +4,7 @@
 		"requiredScopes": [],
 		"schema": {
 			"title": "Hello Bar",
-			"description": "Faixa de ofertas com textos rotativos e opção de configurar contador e botão em cada item.",
+			"description": "Faixa rotativa com texto opcional acima e contador e botão opcionais abaixo em cada oferta.",
 			"type": "object",
 			"properties": {
 				"enabled": {
@@ -14,18 +14,33 @@
 				},
 				"items": {
 					"title": "Itens de texto",
-					"description": "Adicione quantas ofertas precisar. Cada item pode ter seu próprio destino, contador e botão de compra.",
+					"description": "Adicione ofertas com texto, contador e botão opcionais. Quando houver texto, ele aparece acima do contador e do botão.",
 					"type": "array",
 					"minItems": 1,
 					"items": {
 						"title": "Oferta",
 						"type": "object",
-						"required": ["text"],
 						"properties": {
 							"text": {
-								"title": "Texto da oferta",
+								"title": "Texto da oferta (opcional)",
 								"description": "Aceita Markdown inline: **negrito**, *itálico* e ***negrito e itálico***.",
 								"type": "string"
+							},
+							"textColor": {
+								"title": "Cor do texto desta oferta",
+								"type": "string",
+								"pattern": "^#(?:[A-Fa-f0-9]{3}|[A-Fa-f0-9]{4}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$",
+								"widget": {
+									"ui:widget": "color"
+								}
+							},
+							"backgroundColor": {
+								"title": "Cor de fundo desta oferta",
+								"type": "string",
+								"pattern": "^#(?:[A-Fa-f0-9]{3}|[A-Fa-f0-9]{4}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$",
+								"widget": {
+									"ui:widget": "color"
+								}
 							},
 							"boldTextColor": {
 								"title": "Cor do texto em negrito",
@@ -63,6 +78,11 @@
 								"title": "Exibir contador neste item",
 								"type": "boolean",
 								"default": false
+							},
+							"showCountdownLabels": {
+								"title": "Exibir nomes de dias, horas, minutos e segundos",
+								"type": "boolean",
+								"default": true
 							},
 							"countdownEndDate": {
 								"title": "Data e hora final do contador",

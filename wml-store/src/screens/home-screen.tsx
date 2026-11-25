@@ -2,7 +2,7 @@ import { CartIconButton } from '@/components/cart-icon-button';
 import { AssistantHeaderButton } from '@/components/assistant-header-button';
 import { CmsSectionView } from '@/components/cms-section';
 import { HomeSkeleton } from '@/components/home-skeleton';
-import { HELLO_BAR_CONTENT_HEIGHT } from '@/components/hello-bar';
+import { HELLO_BAR_CONTENT_HEIGHT, isHelloBarVisible } from '@/components/hello-bar';
 import HopeLogoIcon from '@/components/icons/HopeLogoIcon';
 import SearchIcon from '@/components/icons/SearchIcon';
 import { ThemedText } from '@/components/themed-text';
@@ -18,17 +18,6 @@ import { useRouter } from 'expo-router';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-
-function hasHelloBarMessage(value: unknown): boolean {
-  if (typeof value === 'string') return value.trim().length > 0;
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const item = value as Record<string, unknown>;
-  return [item.text, item.message, item.label].some((text) => typeof text === 'string' && text.trim().length > 0);
-}
-
-function isCmsEnabled(value: unknown) {
-  return value !== false && !(typeof value === 'string' && value.trim().toLowerCase() === 'false');
-}
 
 export default function HomeScreen() {
   const [cmsPage, setCmsPage] = useState<CmsPage | null>(null);
@@ -76,11 +65,9 @@ function HomeScreenContent({ cmsPage, cmsLoading, cmsError }: { cmsPage: CmsPage
   const firstSectionMode = typeof firstSection?.data?.mode === 'string' ? firstSection.data.mode : '';
   const firstSectionIsHero = firstSection?.name === 'MultipleImageBanner' && firstSectionMode === 'SliderHero';
   const firstSectionData = firstSection?.data ?? {};
-  const firstSectionItems = Array.isArray(firstSectionData.items) ? firstSectionData.items : [];
   const firstSectionIsHelloBar = firstSection?.name === 'HelloBar';
   const firstSectionHelloBarIsVisible = firstSectionIsHelloBar
-    && isCmsEnabled(firstSectionData.enabled)
-    && firstSectionItems.some(hasHelloBarMessage);
+    && isHelloBarVisible(firstSectionData);
   const measuredHelloBarHeight = helloBarHeight ?? HELLO_BAR_CONTENT_HEIGHT + insets.top;
   const headerTop = firstSectionHelloBarIsVisible ? Math.max(0, measuredHelloBarHeight - scrollY) : 0;
   const headerPaddingTop = firstSectionHelloBarIsVisible ? Math.max(0, insets.top - headerTop) : insets.top;
