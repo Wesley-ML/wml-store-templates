@@ -19,6 +19,7 @@ const SPARKLE_HIDDEN_MS = SPARKLE_CYCLE_MS - SPARKLE_FADE_IN_MS - SPARKLE_HOLD_M
 
 type AssistantHeaderButtonProps = {
   color?: string;
+  iconBackgroundColor?: string;
   size?: number;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
@@ -76,7 +77,7 @@ function SequentialSparkles({ color, size }: { color: string; size: number }) {
   );
 }
 
-export function AssistantHeaderButton({ color = '#FFFFFF', size = 30, style, onPress }: AssistantHeaderButtonProps) {
+export function AssistantHeaderButton({ color = '#FFFFFF', iconBackgroundColor, size = 30, style, onPress }: AssistantHeaderButtonProps) {
   const router = useRouter();
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -130,6 +131,7 @@ export function AssistantHeaderButton({ color = '#FFFFFF', size = 30, style, onP
         style={[
           styles.iconCircle,
           { width: size + 8, height: size + 8, borderRadius: (size + 8) / 2 },
+          iconBackgroundColor !== undefined && { backgroundColor: iconBackgroundColor },
           AI_HEADER_ANIMATION_MODE === 'bounce' && iconAnimationStyle,
         ]}
       >

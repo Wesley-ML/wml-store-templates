@@ -182,6 +182,14 @@
 					"maximum": 30,
 					"default": 5
 				},
+				"maxHeight": {
+					"title": "Altura máxima da Hello Bar (dp)",
+					"description": "Limite da altura total da faixa, incluindo a área segura superior do aparelho. Conteúdos que ultrapassarem esse limite poderão ser cortados.",
+					"type": "integer",
+					"minimum": 120,
+					"maximum": 260,
+					"default": 132
+				},
 				"backgroundColor": {
 					"title": "Cor de fundo",
 					"type": "string",

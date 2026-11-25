@@ -250,6 +250,10 @@ export function HelloBar({
   const enabled = booleanValue(data.enabled, true);
   const autoplay = booleanValue(data.autoplay, true);
   const autoplayInterval = numberValue(data.autoplayIntervalSeconds, 5, 2, 30) * 1000;
+  const maximumHeight = numberValue(data.maxHeight, 132, 120, 260);
+  const resolvedMaximumHeight = Math.max(maximumHeight, HELLO_BAR_CONTENT_HEIGHT + topInset);
+  const maximumContentHeight = resolvedMaximumHeight - topInset;
+  const visibleContentHeight = Math.min(slideContentHeight, maximumContentHeight);
   const showNavigationArrows = booleanValue(data.showNavigationArrows, true) && items.length > 1;
   const activeItem = items[activeIndex % Math.max(items.length, 1)];
   const showButton = booleanValue(activeItem?.showButton, booleanValue(data.showButton, false));
@@ -366,12 +370,13 @@ export function HelloBar({
 
   return (
     <View
+      pointerEvents="box-none"
       onLayout={handleLayout}
       style={[
         styles.container,
-        { backgroundColor, paddingTop: topInset, minHeight: slideContentHeight + topInset },
+        { paddingTop: topInset, height: visibleContentHeight + topInset },
       ]}>
-      <View {...swipeResponder.panHandlers} style={[styles.content, { minHeight: slideContentHeight }]}>
+      <View {...swipeResponder.panHandlers} style={[styles.content, { height: visibleContentHeight, backgroundColor }]}>
         {showNavigationArrows && (
           <>
             <Pressable
@@ -486,6 +491,7 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   arrow: {
     position: 'absolute',
